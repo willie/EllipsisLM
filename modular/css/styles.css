@@ -1,0 +1,425 @@
+/**
+ * EllipsisLM - Main Stylesheet
+ * Extracted from monolithic index.html for better maintainability
+ */
+
+:root {
+    --font-primary: 'Inter', sans-serif;
+    --text-primary: #e5e7eb;
+    --text-secondary: #cbd5e1;
+    --text-accent: #a5b4fc;
+
+    --surface-glass: rgba(17, 24, 39, 0.15);
+    --surface-card: rgba(55, 65, 81, 0.6);
+    --surface-overlay: rgba(0, 0, 0, 0.4);
+
+    --border-primary: var(--border-hue-color, rgba(75, 85, 99, 0.8));
+    --border-hue-color: rgba(75, 85, 99, 0.8);
+    --brand-color: #6366f1; /* Indigo */
+    --brand-color-toggle: #4f46e5;
+
+    --scrollbar-thumb: #4b5563;
+
+    --border-radius-md: 0.75rem;
+    --border-radius-sm: 4px;
+
+    --transition-fast: 0.2s ease-in-out;
+    --transition-medium: 0.4s ease-out;
+    --transition-slow: 0.5s ease-in-out;
+
+    /* Appearance Variables */
+    --chat-font-size: 16px;
+    --bubble-image-size: 100px;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: var(--font-primary);
+    color: #e5e7eb;
+}
+
+/* Global styles for form elements to ensure readability on dark backgrounds */
+input, textarea, select {
+    color: var(--text-primary);
+    background-color: rgba(0,0,0,0.7);
+    border: 1px solid var(--border-primary);
+}
+input::placeholder, textarea::placeholder {
+    color: #9ca3af; /* Tailwind gray-400 */
+}
+input:focus, textarea:focus, select:focus {
+    outline: 2px solid var(--brand-color);
+    outline-offset: -1px;
+    border-color: var(--brand-color);
+}
+
+
+.glass-bg {
+    background-color: var(--surface-glass);
+    backdrop-filter: blur(5px);
+}
+
+/* --- Scrollbar Styling --- */
+/* --- Visible Chat Scrollbar (Horizontal) --- */
+body.layout-horizontal #chat-window::-webkit-scrollbar-track {
+    background: rgba(31, 41, 55, 0.5); /* dark-gray-800 at 50% opacity */
+}
+body.layout-horizontal #chat-window::-webkit-scrollbar-thumb {
+    background: rgba(31, 41, 55, 0.5);
+}
+::-webkit-scrollbar { width: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: var(--border-radius-sm);
+}
+
+/* --- Component Styling --- */
+.character-card {
+    background-color: var(--surface-card);
+    backdrop-filter: blur(4px);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--border-radius-md);
+}
+
+.modal-overlay {
+    background-color: var(--surface-overlay);
+}
+
+.details-scroll-container::-webkit-scrollbar-track {
+    background: rgba(31, 41, 55, 0.5); /* dark-gray-800 at 50% opacity */
+}
+
+.toggle-bg:after {
+    content: '';
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    background-color: white;
+    border-radius: 9999px;
+    height: 1.25rem;
+    width: 1.25rem;
+    /* Animate 'left' instead of 'transform' */
+    transition: left var(--transition-fast), background-color var(--transition-fast);
+}
+
+input:checked + .toggle-bg {
+    background-color: rgb(56 189 248 / var(--tw-text-opacity, 1));
+}
+
+input:checked + .toggle-bg:after {
+    /* This value is (Bar Width) - (Knob Width) - (Right Padding) */
+    /* 3rem - 1.25rem - 0.125rem = 1.625rem */
+    left: 1.625rem;
+}
+
+
+
+/* --- Character Roster Button Styling --- */
+.char-roster-btn {
+    position: relative;
+    background-size: cover;
+    background-position: center 25%; /* Focus on the upper part of the image */
+    border-radius: 0.75rem;
+    overflow: hidden;
+    aspect-ratio: 3 / 4;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: 1px solid var(--border-primary);
+    cursor: pointer;
+}
+.char-roster-btn:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 15px rgba(129, 140, 248, 0.4);
+}
+.char-roster-btn::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 70%;
+    background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+    pointer-events: none;
+}
+.char-roster-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    z-index: 10;
+}
+/* --- End Character Roster Button Styling --- */
+
+
+/* --- Chat Components --- */
+#chat-window {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+#chat-window h1,
+#chat-window h2,
+#chat-window h3 {
+    font-weight: bold;
+    margin-bottom: 0.0rem;
+}
+#chat-window h1 { font-size: 1.5em; }
+#chat-window h2 { font-size: 1.25em; }
+#chat-window h3 { font-size: 1.1em; }
+
+#chat-window blockquote {
+    border-left: 3px solid var(--brand-color);
+    padding-left: 1rem;
+    margin: 0.5rem 0;
+    color: var(--text-secondary);
+    font-style: italic;
+    font-weight: bold;
+}
+
+#chat-window em {
+    color: var(--text-accent);
+    font-style: italic;
+}
+
+.chat-bubble-container {
+    width: 100%;
+    max-width: 1000px;
+    align-content: center;
+}
+
+.bubble-header {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.25rem;
+}
+
+.bubble-header .timestamp {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.bubble-char-image {
+    float: left;
+    width: var(--bubble-image-size);
+    height: auto;
+    border-radius: 0.5rem;
+    margin-right: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.bubble-body { font-size: var(--chat-font-size); }
+.bubble-body .whitespace-pre-wrap {
+    overflow: hidden; /* BFC to contain the float */
+    white-space: normal;
+}
+.bubble-body .whitespace-pre-wrap p {
+    margin: 0;
+    white-space: normal;
+}
+.bubble-body .whitespace-pre-wrap p + p {
+    margin-top: 0.75em;
+}
+
+/* Style for scrolling memory lists */
+#static-entries-list, #dynamic-entries-list {
+    overflow-y: auto;
+    /* max-height: 20rem; Corresponds to roughly 6-7 entries */
+    min-height: 0; /* Important for flex/grid children to respect max-height */
+}
+
+/* --- Hover & Animation Effects --- */
+.chat-bubble-container:hover .action-btn-group,
+.chat-bubble-container:hover .timestamp {
+    opacity: 1;
+}
+
+.action-btn-group, .timestamp {
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+#character-portrait-container img {
+    transition: opacity var(--transition-slow);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseOpacity {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.typing-bubble-pulse {
+    animation: pulseOpacity 1.5s ease-in-out infinite;
+}
+
+.chat-bubble-container.new-message {
+    animation: fadeIn var(--transition-medium);
+}
+
+/* --- Layout Management & Responsiveness --- */
+
+/* Default to Vertical/Mobile layout first */
+#desktop-header { display: none; }
+#mobile-header { display: flex; }
+
+body.layout-vertical #app-container { padding: 0; }
+body.layout-vertical #main-header { position: fixed; top: calc(.0rem + env(safe-area-inset-top)); left: 0; right: 0; z-index: 52; margin: 0; padding: 0.5rem; background: transparent; pointer-events: none; }
+body.layout-vertical #hamburger-menu-button-container { opacity: 0.3; transition: opacity 0.3s ease; pointer-events: auto; position: relative; z-index: 52;}
+body.layout-vertical #hamburger-menu-button-container:hover { opacity: 1; }
+body.layout-vertical #mobile-story-title-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 51; /* Increased to 51 to sit above the main header */
+    background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+    padding: .3rem;
+    padding-top: calc(.3rem + env(safe-area-inset-top)); /* Pushes text below the notch */
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: auto;
+}
+
+/* Keeps the title visible when you hover over it or click to edit */
+body.layout-vertical #mobile-story-title-overlay:hover,
+body.layout-vertical #mobile-story-title-overlay:focus {
+    opacity: 1 !important;
+}
+body.layout-vertical #chat-window-container { justify-content: center; border-radius: 0; margin-bottom: 0 !important; }
+body.layout-vertical #chat-window { width: 99%; }
+body.layout-vertical #character-portrait-container { display: none; }
+body.layout-vertical #chat-input-container {
+    padding-top: 1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+
+    /* We use calc() to add your original 1rem padding
+      to the OS's reported safe-area-inset-bottom.
+      This is 0px on desktop but has a value on mobile.
+    */
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+
+    border-top: 1px solid;
+    border-top-color: color-mix(in srgb, var(--chat-text-color) 50%, transparent);
+}
+
+/* Horizontal (Desktop) Layout Overrides */
+body.layout-horizontal #desktop-header { display: flex; }
+body.layout-horizontal #mobile-header { display: none; }
+body.layout-horizontal #app-container { padding: 0.5rem; }
+body.layout-horizontal #chat-window-container { justify-content: space-between; }
+body.layout-horizontal #chat-window { width: 66.66%; }
+body.layout-horizontal #character-portrait-container { display: flex; width: 33.33%; }
+body.layout-horizontal #mobile-header-elements { display: none !important; }
+
+/* --- Cinematic Mode Overhaul --- */
+body[data-mode="cinematic_overlay"] #cinematic-bg-1,
+body[data-mode="cinematic_overlay"] #cinematic-bg-2 {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-size: auto 100%; /* Sets height to 100%, width scales automatically */
+    /* This centers the image horizontally, so it crops from the sides: */
+    background-position: center top;
+    background-repeat: no-repeat;
+}
+body[data-mode="cinematic_overlay"] #app-container {
+    background: transparent;
+    backdrop-filter: none; /* Prevents containing the fixed-position background */
+    padding: 0rem;
+}
+body[data-mode="cinematic_overlay"] main {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end; /* Pushes content to the bottom */
+}
+body[data-mode="cinematic_overlay"] #chat-window-container {
+    flex-grow: 0; /* Prevent it from taking full height */
+    height: 33.33vh;
+    background: transparent;
+    position: relative; /* For the gradient */
+}
+body[data-mode="cinematic_overlay"] #chat-window-container::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    left: 0;
+    right: 0;
+    height: 100px;
+    background: linear-gradient(to bottom, transparent, rgba(17, 24, 39, 0.8));
+    pointer-events: none;
+    z-index: 20;
+}
+body[data-mode="cinematic_overlay"] #chat-window {
+    background: transparent;
+}
+body[data-mode="cinematic_overlay"] #chat-input-container {
+    background-color: rgba(17, 24, 39, 0.7);
+    backdrop-filter: blur(5px);
+}
+/* Specific fix for horizontal cinematic mode */
+body.layout-horizontal[data-mode="cinematic_overlay"] #character-portrait-container {
+    display: none;
+}
+body.layout-horizontal[data-mode="cinematic_overlay"] #chat-window {
+    width: 100%; /* Take full width since side portrait is gone */
+}
+
+/* Make header float over cinematic background in horizontal mode */
+body.layout-horizontal[data-mode="cinematic_overlay"] #main-header {
+    position: absolute;
+    top: 0.0rem;      /* Match app-container padding */
+    left: 0.5rem;
+    right: 0.5rem;
+    z-index: 50;      /* Ensure it's on top of other elements */
+    margin-bottom: 0; /* Override default margin */
+    padding-top: 1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    background: linear-gradient(to bottom, rgba(17, 24, 39, 0.6), transparent);
+    border-radius: 0.75rem 0.75rem 0 0;
+}
+
+/* Styling for quoted dialogue in chat bubbles */
+.dialogue-quote {
+    filter: saturate(175%) opacity(75%) drop-shadow(1px 1px 5px black);
+    font-weight: 500;          /* Makes the text slightly bolder than normal */
+}
+
+/* Push the first message bubble down from the top so that it's controls are accessible. */
+#chat-window .chat-bubble-container:first-child {
+    margin-top: 3rem; /* Adjust this value as needed */
+}
+
+#chat-window .chat-bubble-container:last-child {
+    margin-bottom: 1rem; /* Adjust this value as needed */
+}
+
+/* By default (mobile-first / layout-vertical), show the title and hide the balancer */
+.story-details-title-input {
+    display: block;
+}
+.story-details-title-balancer {
+    display: none;
+}
+
+/* When in horizontal/desktop layout, hide the title and show the balancer */
+body.layout-horizontal .story-details-title-input {
+    display: none;
+}
+body.layout-horizontal .story-details-title-balancer {
+    display: block;
+}

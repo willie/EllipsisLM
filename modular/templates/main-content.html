@@ -1,0 +1,325 @@
+<body data-mode="none" class="bg-gray-900 min-h-screen flex flex-col">
+    
+    <!-- This is where the main user interface will be inserted. -->
+    <!-- PASTE content of main_ui.html HERE -->
+    <!-- Background Image Container -->
+<div id="global-background" class="fixed inset-0 -z-10 bg-gray-900 bg-cover bg-center transition-all duration-500"></div>
+
+<!-- Main Application Container -->
+<div class="w-full h-full flex flex-col glass-bg" id="app-container">
+    
+    <!-- Header -->
+    <header class="mb-4 flex justify-between items-center" id="main-header">
+        <!-- Desktop Header -->
+        <div id="desktop-header" class="justify-between items-center w-full">
+
+            <div class="flex items-center space-x-2">
+				<button onclick="Controller.openModal('story-library-modal')" class="bg-gray-700/80 hover:bg-gray-600/80 text-white font-bold py-2 px-4 rounded-lg"  title="Story Library" style="border-color: color-mix(in srgb, var(--chat-text-color) 50%, transparent); border-width: 2px;"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path><path d="M4 6h16M4 12h16M4 18h7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><path d="M18 18v-6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><path d="M15 12h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
+                
+                <input type="text" id="story-title-input" class="text-2xl font-bold bg-transparent text-white p-1 rounded focus:outline-none focus:bg-black/20 w-96">
+            </div>
+
+            <div class="flex space-x-2">
+                 <button onclick="Controller.openModal('characters-modal')" class="bg-gray-700/80 hover:bg-gray-600/80 text-white font-bold py-2 px-4 rounded-lg" title="Characters"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21a6 6 0 00-9-5.197m0 0A5.965 5.965 0 0112 13a5.965 5.965 0 013 1.803"></path></svg></button>
+                 <button onclick="Controller.openModal('world-map-modal')" class="bg-gray-700/80 hover:bg-gray-600/80 text-white font-bold py-2 px-4 rounded-lg" title="World Map"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 9m-6 4v.01"></path></svg></button>
+                 <button onclick="Controller.openModal('knowledge-modal')" class="bg-gray-700/80 hover:bg-gray-600/80 text-white font-bold py-2 px-4 rounded-lg" title="Knowledge"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253z"></path></svg></button>
+                 <button onclick="Controller.checkWorldInfoAgent()" class="bg-gray-700/80 hover:bg-gray-600/80 text-white font-bold py-2 px-4 rounded-lg" title="Update Static Memory"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></button>
+                 <button onclick="Controller.openModal('settings-modal')" class="bg-gray-700/80 hover:bg-gray-600/80 text-white font-bold py-2 px-4 rounded-lg" title="Settings"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826 3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg></button>
+            </div>
+        </div>
+
+        <!-- Mobile Header -->
+        <div id="mobile-header" class="justify-end items-center w-full">
+            <div class="relative" id="hamburger-menu-button-container">
+                <button id="hamburger-menu-button" class="bg-gray-700/80 hover:bg-gray-600/80 text-white p-2 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <div id="mobile-menu" class="hidden absolute right-0 mt-2 w-56 bg-gray-800/90 backdrop-blur-md rounded-lg shadow-xl z-50">
+                    <a href="#" onclick="Controller.openModal('story-library-modal'); Controller.toggleMobileMenu(); return false;" class="block px-4 py-3 text-white hover:bg-gray-700">Story Library</a>
+					<div class="px-4 py-2 text-gray-400 text-sm font-bold border-t border-gray-700">Narrative Settings</div>
+                    <a href="#" onclick="Controller.openModal('characters-modal'); Controller.toggleMobileMenu(); return false;" class="block px-4 py-3 text-white hover:bg-gray-700">Characters</a>
+                    <a href="#" onclick="Controller.openModal('world-map-modal'); Controller.toggleMobileMenu(); return false;" class="block px-4 py-3 text-white hover:bg-gray-700">World Map</a>
+                    <a href="#" onclick="Controller.openModal('knowledge-modal'); Controller.toggleMobileMenu(); return false;" class="block px-4 py-3 text-white hover:bg-gray-700">Knowledge</a>
+                    <a href="#" onclick="Controller.checkWorldInfoAgent(); Controller.toggleMobileMenu(); return false;" class="block px-4 py-3 text-white hover:bg-gray-700">Update Static</a>
+                    <div class="px-4 py-2 text-gray-400 text-sm font-bold border-t border-gray-700">Settings</div>
+                    <a href="#" onclick="Controller.openSettingsToTab('appearance'); Controller.toggleMobileMenu(); return false;" class="block pl-8 pr-4 py-3 text-white hover:bg-gray-700">Appearance</a>
+                    <a href="#" onclick="Controller.openSettingsToTab('prompt'); Controller.toggleMobileMenu(); return false;" class="block pl-8 pr-4 py-3 text-white hover:bg-gray-700">Prompt</a>
+                    <a href="#" onclick="Controller.openSettingsToTab('model'); Controller.toggleMobileMenu(); return false;" class="block pl-8 pr-4 py-3 text-white hover:bg-gray-700">Model</a>
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- /Header -->
+
+    <div id="mobile-header-elements">
+         <input type="text" id="mobile-story-title-overlay" class="text-xl font-bold text-white truncate text-center bg-transparent focus:bg-black/20 w-1/2">
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow min-h-0 flex flex-col relative">
+        <div id="title-trigger-area" class="absolute top-0 left-0 w-full h-16 z-40" style="height: 2rem;"></div>
+         <!-- Chat Window & Portrait -->
+         <div id="chat-window-container" class="relative flex-grow p-2 flex min-h-0 bg-black/30 rounded-lg overflow-hidden" style="
+    padding-bottom: revert; padding-top: revert;">
+            <div id="cinematic-bg-1" class="absolute inset-0 bg-cover bg-no-repeat bg-center transition-opacity duration-1000 pointer-events-none opacity-0"></div>
+            <div id="cinematic-bg-2" class="absolute inset-0 bg-cover bg-no-repeat bg-center transition-opacity duration-1000 pointer-events-none opacity-0"></div>
+            <div id="chat-window" class="relative z-10 flex-grow overflow-y-auto"></div>
+            <div id="character-portrait-container" class="flex-shrink-0 flex-col justify-center items-center" style="padding-right: 0.5rem;"></div>
+         </div>
+         <!-- /Chat Window & Portrait -->
+         
+         <!-- Chat Input & Controls -->
+         <div id="chat-input-container" class="flex items-start space-x-2 sm:space-x-4" style="padding: 1rem; border-top: 1px solid; border-top-color: 
+ color-mix(in srgb, var(--chat-text-color) 50%, transparent);">
+             <textarea id="chat-input" class="flex-grow bg-black/30 border border-gray-600 rounded-lg p-2 color: black" placeholder="Enter your message..." rows="4" style="color: var(--chat-text-color)" ></textarea>
+             <div class="flex flex-col space-y-2">
+                 <select id="ai-character-selector" class="bg-black/30 border border-gray-600 rounded-lg p-2 w-full mb-2"></select>
+                 <div class="flex items-center justify-center space-x-1">
+                     <button id="primary-action-btn" class="bg-indigo-600/50 hover:bg-indigo-600/80 text-white font-bold p-1.5 rounded-lg" title="Send / Write for Me"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></button>
+                     <button id="regen-btn" class="bg-sky-600/40 hover:bg-sky-600/70 text-white font-bold p-1.5 rounded-lg" title="Regenerate / New Response"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 9a9 9 0 0114.65-5.32L20 5M20 15a9 9 0 01-14.65 5.32L4 19"></path></svg></button>
+                     <button id="undo-btn" class="bg-gray-600/40 hover:bg-gray-500/70 text-white font-bold p-1.5 rounded-lg" title="Undo"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l4-4m-4 4l4 4"></path></svg></button>
+                 </div>
+             </div>
+         </div>
+         <!-- /Chat Input & Controls -->
+    </main>
+    <!-- /Main Content Area -->
+
+</div>
+<!-- /Main Application Container -->
+
+
+    <!-- This is where all the modal dialogs and templates will be inserted. -->
+    <!-- PASTE content of modals.html HERE -->
+<!-- Modals -->
+<!-- Story Library Modal -->
+<div id="story-library-modal" class="fixed inset-0 z-50 items-center justify-center hidden">
+    <div class="modal-overlay absolute inset-0" onclick="Controller.closeModal('story-library-modal')"></div>
+    <div class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl relative flex flex-col" style="width: 100%; max-height: 100%">
+        <div class="p-6 border-b border-gray-700 flex justify-between items-center">
+            <h2 class="text-2xl font-semibold">Story Library</h2>
+            <div class="flex space-x-2">
+                <button onclick="Controller.openModal('io-hub-modal')" class="bg-teal-600/80 hover:bg-teal-700/80 text-white font-bold py-2 px-4 rounded-lg">Import / Export</button>
+                <button onclick="Controller.createNewStory()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">New Story</button>
+            </div>
+        </div>
+        <div id="library-content-container" class="flex-grow flex min-h-0"></div>
+        <div class="p-4 bg-black/20 border-t border-gray-700 flex justify-end">
+            <button onclick="Controller.closeModal('story-library-modal')" class="bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded-lg">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- [NEW] Import/Export Hub Modal -->
+<div id="io-hub-modal" class="fixed inset-0 z-[60] items-center justify-center hidden">
+    <div class="modal-overlay absolute inset-0 bg-black/50" onclick="Controller.closeModal('io-hub-modal')"></div>
+    <div id="io-hub-modal-content" class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl w-11/12 max-w-4xl relative flex flex-col max-h-[90vh]">
+        <!-- Content injected by UIManager.renderIOHubModal -->
+    </div>
+</div>
+
+<!-- [NEW] Bulk Import Report Modal -->
+<div id="report-modal" class="fixed inset-0 z-[70] items-center justify-center hidden">
+    <div class="modal-overlay absolute inset-0 bg-black/60" onclick="Controller.closeModal('report-modal')"></div>
+    <div id="report-modal-content" class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl w-11/12 max-w-2xl relative flex flex-col max-h-[90vh]">
+        <!-- Content injected by UIManager.showBulkImportReport -->
+    </div>
+</div>
+
+<!-- [NEW] Loading Spinner Overlay -->
+<div id="loading-spinner" class="fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm flex-col items-center justify-center hidden" style="display: none;">
+    <div class="w-16 h-16 border-4 border-t-indigo-500 border-gray-600 rounded-full animate-spin"></div>
+    <p id="spinner-message" class="mt-4 text-white font-semibold">Loading...</p>
+</div>
+
+
+<!-- Story Details Modal (for mobile view) -->
+<div id="story-details-modal" class="fixed inset-0 z-50 items-center justify-center hidden"><div class="modal-overlay absolute inset-0" onclick="Controller.closeModal('story-details-modal')"></div><div class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl relative flex flex-col" style="width: 100%; max-width: 1200px; height: 100%;"><div id="story-details-content-mobile" class="flex-grow flex flex-col min-h-0"></div><div class="p-4 bg-black/20 border-t border-gray-700 flex justify-end"><button onclick="Controller.closeModal('story-details-modal')" class="bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded-lg">Back to Library</button></div></div></div>
+
+<!-- Characters Modal -->
+<div id="characters-modal" class="fixed inset-0 z-50 items-center justify-center hidden"><div class="modal-overlay absolute inset-0" onclick="Controller.closeModal('characters-modal')"></div><div class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 relative flex flex-col max-h-[90vh]"><div class="p-6 border-b border-gray-700 flex justify-between items-center"><h2 class="text-2xl font-semibold">Character Roster</h2><button onclick="Controller.addCharacter()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Add Character</button></div><div class="p-6 overflow-y-auto"><div id="characters-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div></div><div class="p-4 bg-black/20 border-t border-gray-700 flex justify-end"><button onclick="Controller.closeModal('characters-modal')" class="bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded-lg">Done</button></div></div></div>
+
+<!-- Individual Character Detail Modal -->
+<div id="character-detail-modal" class="fixed inset-0 z-[60] items-center justify-center hidden">
+    <div class="modal-overlay absolute inset-0 bg-black/50" onclick="Controller.closeModal('character-detail-modal')"></div>
+    <div id="character-detail-modal-content" class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl relative flex flex-col max-h-[90vh]" style="width: 95%; max-width: 1200px;">
+        <!-- Content will be injected by JS -->
+    </div>
+</div>
+
+<!-- Knowledge Modal (Static & Dynamic) -->
+<div id="knowledge-modal" class="fixed inset-0 z-50 items-center justify-center hidden p-4">
+    <div class="modal-overlay absolute inset-0" onclick="Controller.closeModal('knowledge-modal')"></div>
+    <div class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl relative flex flex-col w-full max-w-6xl max-h-[90vh] overflow-hidden">
+        
+        <div class="p-4 flex-shrink-0 flex justify-between items-center border-b border-gray-700">
+            <div class="flex space-x-4">
+                <button id="knowledge-tab-static" onclick="Controller.switchKnowledgeTab('static')" class="py-2 px-2 font-semibold text-lg border-b-2 border-indigo-500 text-white">Static</button>
+                <button id="knowledge-tab-dynamic" onclick="Controller.switchKnowledgeTab('dynamic')" class="py-2 px-2 font-semibold text-lg border-b-2 border-transparent text-gray-400 hover:text-white">Dynamic</button>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button id="knowledge-add-button" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg text-sm">Add Entry</button>
+                <button onclick="Controller.closeModal('knowledge-modal')" class="bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white p-2 rounded-lg transition-colors" title="Close">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="p-4 flex-grow overflow-y-auto min-h-0">
+            
+            <div id="knowledge-static-content" class="h-full flex flex-col md:flex-row gap-4">
+                <div id="static-entries-list" class="w-full md:w-1/3 bg-black/30 rounded-lg p-4 overflow-y-auto h-48 md:h-full flex-shrink-0"></div>
+                <div id="static-entry-details" class="w-full md:w-2/3 bg-black/30 rounded-lg p-4 overflow-y-auto flex-grow">
+                    <div id="static-entry-details-content" class="h-full">
+                        <div class="text-gray-400 flex items-center justify-center h-full">Select a static entry.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="knowledge-dynamic-content" class="hidden h-full flex flex-col md:flex-row gap-4">
+                <div id="dynamic-entries-list" class="w-full md:w-1/3 bg-black/30 rounded-lg p-4 overflow-y-auto h-48 md:h-full flex-shrink-0"></div>
+                <div id="dynamic-entry-details" class="w-full md:w-2/3 bg-black/30 rounded-lg p-4 overflow-y-auto flex-grow">
+                    <div id="dynamic-entry-details-content" class="h-full">
+                        <div class="text-gray-400 flex items-center justify-center h-full">Select a dynamic entry.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+</div>
+
+<!-- World Map Modal -->
+<div id="world-map-modal" class="fixed inset-0 z-50 items-center justify-center hidden">
+    <div class="modal-overlay absolute inset-0" onclick="Controller.closeModal('world-map-modal')"></div>
+    <div id="world-map-modal-content" class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl w-11/12 max-w-6xl relative flex flex-col max-h-[90vh] min-h-[50vh]">
+        <!-- Content injected by JS -->
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="fixed inset-0 z-50 items-center justify-center hidden p-4">
+    <div class="modal-overlay absolute inset-0" onclick="Controller.closeModal('settings-modal')"></div>
+    <div class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] relative flex flex-col">
+        
+        <div class="p-6 flex-shrink-0 border-b border-gray-700 flex justify-between items-start">
+            <div>
+                <h2 class="text-2xl font-semibold mb-4">Settings</h2>
+                <div class="flex -mb-px space-x-4">
+                    <button id="settings-tab-appearance" onclick="Controller.switchSettingsTab('appearance')" class="pb-2 font-semibold border-b-2 border-indigo-500 text-white transition-colors">Appearance</button>
+                    <button id="settings-tab-prompt" onclick="Controller.switchSettingsTab('prompt')" class="pb-2 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white transition-colors">Prompt</button>
+                    <button id="settings-tab-model" onclick="Controller.switchSettingsTab('model')" class="pb-2 font-semibold border-b-2 border-transparent text-gray-400 hover:text-white transition-colors">Model</button>
+                </div>
+            </div>
+            <button onclick="Controller.closeModal('settings-modal')" class="bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white p-2 rounded-lg transition-colors -mt-2" title="Close">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <div class="p-6 overflow-y-auto flex-grow min-h-0" id="settings-content-container">
+            ...
+        </div>
+        </div>
+</div>
+
+<!-- Edit Response Modal -->
+<div id="edit-response-modal" class="fixed inset-0 z-50 items-center justify-center hidden">
+    <div class="modal-overlay absolute inset-0" onclick="Controller.closeModal('edit-response-modal')"></div>
+    <div class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl w-11/12 md:w-2/3 lg:w-1/2 relative flex flex-col max-h-[75vh]">
+        <div class="p-6 border-b border-gray-700 flex-shrink-0"> <h3 class="text-xl font-bold">Edit Response</h3> </div>
+        <div class="p-6 overflow-y-auto"> <textarea id="edit-modal-input" class="w-full bg-gray-900 border-gray-700 rounded-lg p-2 resize-none"></textarea> </div>
+        <div class="p-4 bg-black/20 border-t border-gray-700 flex justify-end space-x-4 flex-shrink-0">
+            <button onclick="Controller.closeModal('edit-response-modal')" class="bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded-lg">Cancel</button>
+            <button id="edit-modal-save-button" class="bg-indigo-600 hover:bg-indigo-700 font-bold py-2 px-4 rounded-lg">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- View Raw Prompt Modal -->
+<div id="view-raw-prompt-modal" class="fixed inset-0 z-50 items-center justify-center hidden"><div class="modal-overlay absolute inset-0" onclick="Controller.closeModal('view-raw-prompt-modal')"></div><div class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 relative flex flex-col max-h-[90vh]"><div class="p-6 border-b border-gray-700"><h2 class="text-2xl font-semibold">Raw Prompt</h2></div><div class="p-6 overflow-y-auto flex-grow bg-gray-900"><pre id="raw-prompt-content" class="text-sm whitespace-pre-wrap"></pre></div><div class="p-4 bg-black/20 border-t border-gray-700 flex justify-end"><button onclick="Controller.closeModal('view-raw-prompt-modal')" class="bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded-lg">Done</button></div></div></div>
+
+<!-- Example Dialogue Modal -->
+<div id="example-dialogue-modal" class="fixed inset-0 z-[60] items-center justify-center hidden">
+    <div class="modal-overlay absolute inset-0 bg-black/50" onclick="Controller.closeModal('example-dialogue-modal')"></div>
+    <div class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 relative flex flex-col max-h-[90vh]">
+        <div class="p-6 border-b border-gray-700 flex justify-between items-center">
+            <h2 class="text-2xl font-semibold">Edit Example Dialogue</h2>
+            <button onclick="Controller.addExampleDialogueTurn()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Add Turn</button>
+        </div>
+        <div id="example-dialogue-container" class="p-6 overflow-y-auto flex-grow space-y-4"></div>
+        <div class="p-4 bg-black/20 border-t border-gray-700 flex justify-end">
+            <button onclick="Controller.closeModal('example-dialogue-modal')" class="bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded-lg">Done</button>
+        </div>
+    </div>
+</div>
+
+<!-- Generic Confirmation Modal -->
+<div id="confirmation-modal" class="fixed inset-0 z-[70] items-center justify-center hidden">
+    <div class="modal-overlay absolute inset-0 bg-black/60" onclick="Controller.closeModal('confirmation-modal')"></div>
+    <div class="bg-gray-800/80 backdrop-blur-md rounded-lg shadow-xl w-11/12 max-w-md relative flex flex-col">
+        <div class="p-6">
+            <h3 class="text-xl font-bold mb-4">Are you sure?</h3>
+            <p id="confirmation-modal-message" class="text-gray-300">This action cannot be undone.</p>
+        </div>
+        <div class="p-4 bg-black/20 border-t border-gray-700 flex justify-end space-x-4">
+            <button onclick="Controller.closeModal('confirmation-modal')" class="bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded-lg">Cancel</button>
+            <button id="confirmation-modal-confirm-button" class="bg-red-600 hover:bg-red-700 font-bold py-2 px-4 rounded-lg">Confirm</button>
+        </div>
+    </div>
+</div>
+<!-- /Modals -->
+
+<!-- Hidden template for settings tabs -->
+<div id="settings-templates" class="hidden">
+    <div id="settings-appearance-content" class="space-y-6">
+        <div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="font-selector" class="text-gray-400 text-sm block mb-2">Chat Font</label>
+                    <select id="font-selector" class="w-full rounded-lg p-2">
+                        <option value="'Inter', sans-serif">Inter (Sans-Serif)</option>
+                        <option value="'Nunito Sans', sans-serif">Nunito Sans (Sans-Serif)</option>
+                        <option value="'Lora', serif">Lora (Serif)</option>
+                        <option value="'Roboto Slab', serif">Roboto Slab</option>
+                        <option value="'EB Garamond', serif">EB Garamond</option>
+                        <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
+                        <option value="'Dancing Script', cursive">Dancing Script</option>
+                        <option value="'Source Code Pro', monospace">Source Code Pro</option>
+                    </select>
+                </div>
+                <div><label for="chat-text-color" class="text-gray-400 text-sm block mb-2">Chat Text Color</label><input type="color" id="chat-text-color" class="w-full rounded-lg p-1 h-10"></div>
+            </div>
+		<div>
+                <label for="background-image-upload" class="text-gray-400 text-sm block mb-2">Background Image</label>
+                <div class="flex space-x-2">
+                    <input type="file" id="background-image-upload" accept="image/*" class="block w-full text-sm text-gray-400 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-gray-200 hover:file:bg-gray-600 cursor-pointer">
+                    <button id="background-image-clear" class="bg-red-600/80 hover:bg-red-700/80 text-white font-bold py-1 px-3 rounded-lg">Clear</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div><label for="bubble-opacity-slider" class="text-gray-400 text-sm block mb-2">Chat Bubble Opacity</label><div class="flex items-center space-x-4"><input type="range" id="bubble-opacity-slider" class="w-full" min="0" max="1" step="0.05"><span id="bubble-opacity-value" class="text-sm text-gray-400 w-12 text-right"></span></div></div>
+                <div><label for="blur-slider" class="text-gray-400 text-sm block mb-2">Background Blur (px)</label><div class="flex items-center space-x-4"><input type="range" id="blur-slider" class="w-full" min="0" max="20" step="1"><span id="blur-value" class="text-sm text-gray-400 w-12 text-right"></span></div></div>
+                <div><label for="text-size-slider" class="text-gray-400 text-sm block mb-2">Text Size (px)</label><div class="flex items-center space-x-4"><input type="range" id="text-size-slider" class="w-full" min="12" max="24" step="1"><span id="text-size-value" class="text-sm text-gray-400 w-12 text-right"></span></div></div>
+                <div><label for="bubble-image-size-slider" class="text-gray-400 text-sm block mb-2">Bubble Image Size (px)</label><div class="flex items-center space-x-4"><input type="range" id="bubble-image-size-slider" class="w-full" min="50" max="200" step="10"><span id="bubble-image-size-value" class="text-sm text-gray-400 w-12 text-right"></span></div></div>
+            </div>
+            <label class="text-gray-400 text-sm block mt-4 mb-2">Character Image Display</label><div class="flex space-x-4" id="character-image-display"><label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="imageDisplayMode" value="none" checked><span>None</span></label><label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="imageDisplayMode" value="cinematic_overlay"><span>Cinematic</span></label><label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="imageDisplayMode" value="bubble"><span>Bubble</span></label></div>
+        </div>
+    </div>
+    <!-- Replaced the Prompt tab content with individual, collapsible <details> sections for better organization. -->
+    <div id="settings-prompt-content" class="space-y-2">
+        <details><summary class="font-semibold text-lg cursor-pointer hover:text-indigo-300 py-2">Core Prompts</summary><div class="p-4 space-y-4 bg-black/20 rounded-b-lg"><div><h3 class="text-base font-medium mb-2">System Prompt (Global Fallback)</h3><p class="text-gray-400 text-sm mb-2">Used by AI characters who don't have their own specific instructions.</p><textarea id="system-prompt-input" class="w-full rounded-lg p-2 resize-y" rows="4"></textarea></div><hr class="border-gray-700"><div><h3 class="text-base font-medium mb-2">Event Master Prompt</h3><p class="text-gray-400 text-sm mb-2">Define the base instruction for the Event Master, which injects surprise events.</p><textarea id="event-master-prompt-input" class="w-full rounded-lg p-2 resize-y" rows="4"></textarea></div></div></details>
+        <details><summary class="font-semibold text-lg cursor-pointer hover:text-indigo-300 py-2">Persona Generation Prompt</summary><div class="p-4 bg-black/20 rounded-b-lg"><p class="text-gray-400 text-sm mb-2">Used by the AI button on a character's persona. Use <code>{concept}</code> for the existing text.</p><textarea id="prompt-persona-gen-input" class="w-full rounded-lg p-2 resize-y" rows="4"></textarea></div></details>
+        <details><summary class="font-semibold text-lg cursor-pointer hover:text-indigo-300 py-2">World Map Generation Prompt</summary><div class="p-4 bg-black/20 rounded-b-lg"><p class="text-gray-400 text-sm mb-2">Used to generate the entire world map. Use <code>{characters}</code>, <code>{static}</code>, and <code>{recent}</code>.</p><textarea id="prompt-world-map-gen-input" class="w-full rounded-lg p-2 resize-y" rows="6"></textarea></div></details>
+        <details><summary class="font-semibold text-lg cursor-pointer hover:text-indigo-300 py-2">Location Prompt Generation</summary><div class="p-4 bg-black/20 rounded-b-lg"><p class="text-gray-400 text-sm mb-2">Used to generate a location's detailed prompt. Use <code>{name}</code> and <code>{description}</code>.</p><textarea id="prompt-location-gen-input" class="w-full rounded-lg p-2 resize-y" rows="4"></textarea></div></details>
+        <details><summary class="font-semibold text-lg cursor-pointer hover:text-indigo-300 py-2">Memory Entry Generation</summary><div class="p-4 bg-black/20 rounded-b-lg"><p class="text-gray-400 text-sm mb-2">Used for Static/Dynamic memory entries. Use <code>{title}</code> and <code>{triggers}</code>.</p><textarea id="prompt-entry-gen-input" class="w-full rounded-lg p-2 resize-y" rows="4"></textarea></div></details>
+        <details><summary class="font-semibold text-lg cursor-pointer hover:text-indigo-300 py-2">Location Memory Summary</summary><div class="p-4 bg-black/20 rounded-b-lg"><p class="text-gray-400 text-sm mb-2">Used to auto-summarize events when you leave a location. Use <code>{transcript}</code>.</p><textarea id="prompt-location-memory-gen-input" class="w-full rounded-lg p-2 resize-y" rows="4"></textarea></div></details>
+        <div class="flex space-x-2 pt-4"><button onclick="Controller.openViewRawPromptModal()" class="bg-gray-600/80 hover:bg-gray-500/80 text-white font-bold py-2 px-4 rounded-lg">View Raw Prompt</button><button onclick="Controller.openModal('example-dialogue-modal')" class="bg-sky-600/80 hover:bg-sky-500/80 text-white font-bold py-2 px-4 rounded-lg">Edit Example Dialogue</button></div>
+    </div>
+<div id="settings-model-content" class="space-y-6">
+        <p class="text-sm text-amber-300 bg-amber-900/50 p-3 rounded-lg -mt-2 mb-4"><strong>Note:</strong> These model settings are persistent and apply globally to all stories.</p>
+        
+        <div><h3 class="text-lg font-medium mb-2">AI Provider</h3><div class="flex space-x-4"><label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="apiProvider" value="gemini" onchange="Controller.setApiProvider('gemini')"><span>Gemini</span></label><label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="apiProvider" value="openrouter" onchange="Controller.setApiProvider('openrouter')"><span>OpenRouter</span></label><label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="apiProvider" value="koboldcpp" onchange="Controller.setApiProvider('koboldcpp')"><span>KoboldCPP</span></label><label class="flex items-center space-x-2 cursor-pointer"><input type="radio" name="apiProvider" value="lmstudio" onchange="Controller.setApiProvider('lmstudio')"><span>LM Studio</span></label></div></div><div id="gemini-settings"><h3 class="text-lg font-medium">Gemini API Settings</h3><p class="text-gray-400 text-sm mb-2">Required for text generation.</p><input type="password" id="gemini-api-key-input" class="w-full rounded-lg p-2" placeholder="Enter Gemini API key"></div><div id="openrouter-settings"><h3 class="text-lg font-medium">OpenRouter API Settings</h3><p class="text-gray-400 text-sm mb-2">Your key and the model name.</p><input type="password" id="openrouter-api-key-input" class="w-full rounded-lg p-2" placeholder="Enter OpenRouter API key"><input type="text" id="openrouter-model-input" class="mt-2 w-full rounded-lg p-2" placeholder="Enter model name"></div><div id="koboldcpp-settings"><h3 class="text-lg font-medium">KoboldCPP Settings</h3><p class="text-amber-400 text-sm mb-2 bg-amber-900/50 p-2 rounded-md">Ensure your local server is running with default URL.</p><div><label for="koboldcpp-template-selector" class="text-gray-400 text-sm block mb-2">Prompt Template</label><select id="koboldcpp-template-selector" class="w-full rounded-lg p-2"><option value="none">None (Raw Text)</option><option value="mistral">Mistral</option><option value="chatml">ChatML</option><option value="alpaca">Alpaca</option></select></div><div><label for="koboldcpp-min-p-slider" class="text-gray-400 text-sm block mt-4 mb-2">Min P</label><div class="flex items-center space-x-4"><input type="range" id="koboldcpp-min-p-slider" class="w-full" min="0" max="1" step="0.05"><span id="koboldcpp-min-p-value" class="text-sm text-gray-400 w-12 text-right"></span></div></div><div><label for="koboldcpp-dry-slider" class="text-gray-400 text-sm block mt-4 mb-2">DRY (Repetition Penalty)</label><div class="flex items-center space-x-4"><input type="range" id="koboldcpp-dry-slider" class="w-full" min="0" max="1" step="0.05"><span id="koboldcpp-dry-value" class="text-sm text-gray-400 w-12 text-right"></span></div></div></div><div id="lmstudio-settings"><h3 class="text-lg font-medium">LM Studio Settings</h3><p class="text-amber-400 text-sm mb-2 bg-amber-900/50 p-2 rounded-md">Ensure LM Studio is running with a model loaded. Default URL is http://localhost:1234</p><div><label for="lmstudio-url-input" class="text-gray-400 text-sm block mb-2">LM Studio Server URL</label><input type="text" id="lmstudio-url-input" class="w-full rounded-lg p-2" placeholder="http://localhost:1234"></div></div>
+    </div>
+</div>
+
+
+    <!-- Application Logic - The order of these scripts is important! -->
