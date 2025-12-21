@@ -36,8 +36,9 @@ modular/
 ├── index.html              # Entry point
 ├── css/styles.css          # All CSS
 ├── js/
+│   ├── preamble.js         # Standalone code (APP_BUILD_TIMESTAMP, debounce)
 │   ├── services/           # Core services
-│   │   ├── utility.js      # Helpers, defaults, A* pathfinding
+│   │   ├── utility.js      # DOM, ActionHandler, UTILITY helpers
 │   │   ├── db-service.js   # IndexedDB (fail-soft pattern)
 │   │   ├── story-service.js
 │   │   ├── state-manager.js
@@ -52,7 +53,7 @@ modular/
 └── ARCHITECTURE.md         # Detailed architecture documentation
 ```
 
-**Script load order matters:** utility → db-service → story-service → state-manager → api-service → prompt-builder → image-processor → import-export-service → ui-manager → controller → app
+**Script load order matters:** preamble → utility → db-service → story-service → state-manager → api-service → prompt-builder → image-processor → import-export-service → ui-manager → controller → app
 
 ## Architecture
 

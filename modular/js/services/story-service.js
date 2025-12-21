@@ -1,543 +1,488 @@
-/**
- * StoryService Module (The Data Abstraction Layer)
- * This module is the single source of truth for all complex data orchestration.
- * The Controller calls this service, and this service calls DBService.
- * This keeps all database logic in one place and out of the Controller.
- */
-const StoryService = {
+        const StoryService = {
+            /**
+             * Loads the initial application data (stories, active story/narrative).
+             * @returns {Promise<{storyStubs: Array, activeStory: Object|null, activeNarrative: Object|null}>}
+             */
+            async loadApplicationData() {
+                const storyStubs = await DBService.getAllStories();
 
-    /**
-     * Loads the full data needed to start the application.
-     * Fetches all story stubs for the library AND the full data for the active session.
-     * @returns {Promise<object>} An object containing { storyStubs, activeStory, activeNarrative }
-     */
-    async loadApplicationData() {
-        console.log("StoryService: Loading application data...");
-        // 1. Get the list of story stubs for the library view
-        const storyStubs = await DBService.getAllStories();
+                // Robust local storage retrieval
+                let activeStoryId = localStorage.getItem('active_story_id');
+                let activeNarrativeId = localStorage.getItem('active_narrative_id');
 
-        // 2. Get the active session IDs from localStorage
-        const activeStoryId = localStorage.getItem('active_story_id');
-        const activeNarrativeId = localStorage.getItem('active_narrative_id');
+                // Clean "null" strings
+                if (activeStoryId === 'null') activeStoryId = null;
+                if (activeNarrativeId === 'null') activeNarrativeId = null;
 
-        let activeStory = null;
-        let activeNarrative = null;
+                let activeStory = null;
+                let activeNarrative = null;
 
-        // 3. If there is an active session, fetch the FULL data for it
-        if (activeStoryId && activeNarrativeId) {
-            console.log(`StoryService: Found active session. Story: ${activeStoryId}, Narrative: ${activeNarrativeId}`);
-            // We get these in parallel for speed
-            const storyPromise = DBService.getStory(activeStoryId);
-            const narrativePromise = DBService.getNarrative(activeNarrativeId);
+                if (activeStoryId && activeNarrativeId) {
+                    try {
+                        const [story, narrative] = await Promise.all([
+                            DBService.getStory(activeStoryId),
+                            DBService.getNarrative(activeNarrativeId)
+                        ]);
 
-            const [story, narrative] = await Promise.all([storyPromise, narrativePromise]);
+                        if (story && narrative) {
+                            activeStory = story;
+                            activeNarrative = narrative;
+                        } else {
+                            // Silent Fail-Safe: Data is missing, clear IDs but don't error out
+                            console.warn("StoryService: Session data not found in DB. Resetting.");
+                            localStorage.removeItem('active_story_id');
+                            localStorage.removeItem('active_narrative_id');
+                        }
+                    } catch (e) {
+                        console.error("StoryService: DB Load Error", e);
+                        localStorage.removeItem('active_story_id');
+                        localStorage.removeItem('active_narrative_id');
+                    }
+                }
+                return { storyStubs, activeStory, activeNarrative };
+            },
 
-            if (story && narrative) {
-                activeStory = story;
-                activeNarrative = narrative;
-            } else {
-                // Data mismatch (e.g., story exists but narrative was deleted)
-                // Clear the bad IDs to prevent a broken state
-                console.warn("StoryService: Active session data mismatch. Clearing active IDs.");
-                localStorage.removeItem('active_story_id');
-                localStorage.removeItem('active_narrative_id');
-            }
-        } else {
-            console.log("StoryService: No active session found.");
-        }
+            /**
+             * Saves the current active state (narrative and story) to the database.
+             * @param {Object} currentState - The current state object.
+             * @param {Array} narrativeStubs - The list of narrative stubs.
+             * @returns {Promise<void>}
+             */
+            async saveActiveState(currentState, narrativeStubs) {
+                if (!currentState || !currentState.id || !currentState.narrativeId) return;
 
-        return { storyStubs, activeStory, activeNarrative };
-    },
+                // 1. Prepare Data
+                // Clone objects to break references (Sanitization)
+                const rawCharacters = JSON.parse(JSON.stringify(currentState.characters || []));
+                const safeChatHistory = JSON.parse(JSON.stringify(currentState.chat_history || []));
+                const safeStaticEntries = JSON.parse(JSON.stringify(currentState.static_entries || []));
+                const safeWorldMap = JSON.parse(JSON.stringify(currentState.worldMap || {}));
+                const safeDynamicEntries = JSON.parse(JSON.stringify(currentState.dynamic_entries || []));
 
-    /**
-     * Saves the entire active state by splitting it into Story (Metadata + Characters)
-     * and Narrative (Chat + Active Status).
-     */
-    async saveActiveState(currentState, narrativeStubs) {
-        if (!currentState || !currentState.id || !currentState.narrativeId) {
-            console.warn("StoryService: saveActiveState skipped (invalid state).");
-            return;
-        }
+                // Image Sanitization
+                const sanitizedCharacters = rawCharacters.map(c => {
+                    let safeImage = c.image_url;
+                    if (safeImage && safeImage.length > 500 && !safeImage.startsWith('http') && !safeImage.startsWith('local_')) {
+                        safeImage = '';
+                    }
+                    c.image_url = safeImage;
+                    return c;
+                });
 
-        // 1. Extract Active Character IDs for the Narrative
-        // The narrative only cares *who* is here, not *what* they look like.
-        const activeCharacterIds = (currentState.characters || [])
-            .filter(c => c.is_active)
-            .map(c => c.id);
+                const narrativeData = {
+                    id: currentState.narrativeId,
+                    name: currentState.narrativeName,
+                    last_modified: new Date().toISOString(),
+                    active_character_ids: sanitizedCharacters.filter(c => c.is_active).map(c => c.id),
+                    state: {
+                        chat_history: safeChatHistory,
+                        messageCounter: currentState.messageCounter,
+                        static_entries: safeStaticEntries,
+                        worldMap: safeWorldMap
+                    }
+                };
 
-        // 2. Create the 'story' object
-        // This holds the MASTER LIST of character definitions.
-        const storyData = {
-            id: currentState.id,
-            name: currentState.name,
-            last_modified: new Date().toISOString(),
-            created_date: currentState.created_date,
-            creator_notes: currentState.creator_notes,
-            tags: currentState.tags,
-            // UI settings & Prompts
-            font: currentState.font,
-            backgroundImageURL: currentState.backgroundImageURL,
-            bubbleOpacity: currentState.bubbleOpacity,
-            chatTextColor: currentState.chatTextColor,
-            characterImageMode: currentState.characterImageMode,
-            backgroundBlur: currentState.backgroundBlur,
-            textSize: currentState.textSize,
-            bubbleImageSize: currentState.bubbleImageSize,
-            system_prompt: currentState.system_prompt,
-            event_master_base_prompt: currentState.event_master_base_prompt,
-            event_master_prompt: currentState.event_master_prompt,
-            prompt_persona_gen: currentState.prompt_persona_gen,
-            prompt_world_map_gen: currentState.prompt_world_map_gen,
-            prompt_location_gen: currentState.prompt_location_gen,
-            prompt_entry_gen: currentState.prompt_entry_gen,
-            prompt_location_memory_gen: currentState.prompt_location_memory_gen,
-            // Data
-            characters: currentState.characters, // Save full definitions here
-            dynamic_entries: currentState.dynamic_entries,
-            scenarios: currentState.scenarios,
-            narratives: narrativeStubs || []
-        };
+                // 2. Perform Transactional Story Update
+                const storyId = currentState.id;
+                const currentNarrativeId = currentState.narrativeId;
 
-        // 3. Create the 'narrative' object
-        const narrativeData = {
-            id: currentState.narrativeId,
-            name: currentState.narrativeName,
-            last_modified: new Date().toISOString(),
-            // Store the list of IDs that are active in this specific narrative
-            active_character_ids: activeCharacterIds,
-            state: {
-                chat_history: currentState.chat_history,
-                messageCounter: currentState.messageCounter,
-                static_entries: currentState.static_entries,
-                worldMap: currentState.worldMap
-            }
-        };
+                try {
+                    // A. Save Narrative
+                    await DBService.saveNarrative(narrativeData);
 
-        // 4. Save both
-        await Promise.all([
-            DBService.saveStory(storyData),
-            DBService.saveNarrative(narrativeData)
-        ]);
-    },
+                    // B. Sync Story
+                    const freshStory = await DBService.getStory(storyId);
 
-    /**
-     * Creates the very first story and narrative for a new user.
-     * @returns {Promise<object>} { newStory, newNarrative }
-     */
-    async createDefaultStoryAndNarrative() {
-        // 1. Create the Story object (metadata)
-        const newStory = {
-            id: UTILITY.uuid(), name: "My First Story", last_modified: new Date().toISOString(), created_date: new Date().toISOString(),
-            ...UTILITY.getDefaultApiSettings(), ...UTILITY.getDefaultUiSettings(), ...UTILITY.getDefaultSystemPrompts(), ...UTILITY.getDefaultStorySettings(),
-            characters: [
-                { id: UTILITY.uuid(), name: "You", description: "The protagonist.", short_description: "The main character.", model_instructions: "Write a response for {character} in a creative and descriptive style.", is_user: true, is_active: true, image_url: '', extra_portraits: [], tags:[], is_narrator: false },
-                { id: UTILITY.uuid(), name: "Narrator", description: "Describes the world.", short_description: "The storyteller.", model_instructions: "Act as a world-class storyteller.", is_user: false, is_active: true, image_url: '', extra_portraits: [], tags:[], color: { base: '#334155', bold: '#94a3b8' }, is_narrator: true }
-            ],
-            dynamic_entries: [{id: UTILITY.uuid(), title: "Example Lorebook Entry", triggers: "example, .01%", content_fields: ["This is a sample dynamic lore entry."], current_index: 0, triggered_at_turn: null }],
-            scenarios: [{ id: UTILITY.uuid(), name: "Default Start", message: "The story begins..." }],
-            narratives: [] // This will be populated with a stub
-        };
+                    if (freshStory) {
+                        freshStory.last_modified = new Date().toISOString();
 
-        // 2. Create the Narrative object (heavy data)
-        const defaultScenario = newStory.scenarios[0];
-        const newNarrative = {
-            id: UTILITY.uuid(), name: `${defaultScenario.name} - Chat`, last_modified: new Date().toISOString(),
-            state: {
-                chat_history: [], messageCounter: 0,
-                static_entries: [{ id: UTILITY.uuid(), title: "World Overview", content: "A high-fantasy world." }],
-                worldMap: { grid: UTILITY.createDefaultMapGrid(), currentLocation: { x: 4, y: 4 }, destination: { x: null, y: null }, path: [] }
-            }
-        };
+                        // Sync Structures
+                        freshStory.characters = sanitizedCharacters;
+                        freshStory.dynamic_entries = safeDynamicEntries;
+                        if (currentState.tags) freshStory.tags = currentState.tags;
+                        if (currentState.creator_notes) freshStory.creator_notes = currentState.creator_notes;
 
-        // 3. Add first message to narrative
-        const firstSpeaker = newStory.characters.find(c => !c.is_user);
-        newNarrative.state.chat_history.push({
-            character_id: firstSpeaker.id, content: defaultScenario.message, type: 'chat', emotion: 'neutral', timestamp: new Date().toISOString(),
-        });
-        newNarrative.state.messageCounter = 1;
+                        // Sync all relevant settings keys to ensure the story stub matches the active state.
+                        const settingsKeys = [
+                            // Appearance
+                            'font', 'backgroundImageURL', 'bubbleOpacity', 'chatTextColor',
+                            'backgroundBlur', 'textSize', 'bubbleImageSize', 'characterImageMode',
 
-        // 4. Add the narrative stub to the story's list
-        newStory.narratives.push({ id: newNarrative.id, name: newNarrative.name });
+                            // Markdown Colors
+                            'md_h1_color', 'md_h2_color', 'md_h3_color',
+                            'md_bold_color', 'md_italic_color', 'md_quote_color',
 
-        // 5. Save both to IndexedDB
-        await DBService.saveStory(newStory);
-        await DBService.saveNarrative(newNarrative);
+                            // Markdown Fonts
+                            'md_h1_font', 'md_h2_font', 'md_h3_font',
+                            'md_bold_font', 'md_italic_font', 'md_quote_font',
 
-        // 6. Return the new objects
-        return { newStory, newNarrative };
-    },
+                            // Core Prompts
+                            'system_prompt',
 
-    /**
-     * Creates a new, blank story and saves it to the database.
-     * @returns {Promise<object>} The new story object (stub).
-     */
-    async createNewStory() {
-        const newStory = {
-            id: UTILITY.uuid(), name: "New Story", last_modified: new Date().toISOString(), created_date: new Date().toISOString(),
-            ...UTILITY.getDefaultApiSettings(), ...UTILITY.getDefaultUiSettings(), ...UTILITY.getDefaultSystemPrompts(), ...UTILITY.getDefaultStorySettings(),
-            search_index: "new story",
-            characters: [
-                { id: UTILITY.uuid(), name: "You", description: "The protagonist.", short_description: "The main character.", model_instructions: "Write a response for {character} in a creative and descriptive style.", is_user: true, is_active: true, image_url: '', extra_portraits: [], tags:[], is_narrator: false },
-                { id: UTILITY.uuid(), name: "Narrator", description: "Describes the world.", short_description: "The storyteller.", model_instructions: "Act as a world-class storyteller.", is_user: false, is_active: true, image_url: '', extra_portraits: [], tags:[], color: { base: '#334155', bold: '#94a3b8' }, is_narrator: true }
-            ],
-            dynamic_entries: [{id: UTILITY.uuid(), title: "Example Lorebook Entry", triggers: "example, 100%", content_fields: ["This is a sample dynamic lore entry."], current_index: 0, triggered_at_turn: null }],
-            scenarios: [{ id: UTILITY.uuid(), name: "Default Start", message: "The story begins..." }],
-            narratives: [] // No narratives created by default
-        };
+                            // Event Master
+                            'event_master_base_prompt', 'event_master_prompt', 'event_master_probability',
 
-        await DBService.saveStory(newStory);
-        return newStory;
-    },
+                            // Generation Prompts
+                            'prompt_persona_gen', 'prompt_world_map_gen', 'prompt_location_gen',
+                            'prompt_entry_gen', 'prompt_location_memory_gen', 'prompt_story_notes_gen', 'prompt_story_tags_gen'
+                        ];
 
-    /**
-     * Deletes a story and ALL its associated data (narratives, images).
-     * This is the orchestration logic.
-     * @param {string} storyId - The ID of the story to delete.
-     */
-    async deleteStory(storyId) {
-        // 1. Get the story object to find its children
-        const story = await DBService.getStory(storyId);
-        if (!story) return; // Story already deleted
+                        settingsKeys.forEach(key => {
+                            // Only overwrite if the current state actually has a value (even if it's an empty string)
+                            if (currentState[key] !== undefined) {
+                                freshStory[key] = currentState[key];
+                            }
+                        });
 
-        // 2. Delete all associated Narratives
-        const deleteNarrativePromises = (story.narratives || []).map(n_stub =>
-            DBService.deleteNarrative(n_stub.id)
-        );
+                        // C. Update Stub
+                        if (!freshStory.narratives) freshStory.narratives = [];
+                        const stubIndex = freshStory.narratives.findIndex(n => n.id === currentNarrativeId);
+                        if (stubIndex !== -1) {
+                            freshStory.narratives[stubIndex].name = currentState.narrativeName;
+                            freshStory.narratives[stubIndex].last_modified = narrativeData.last_modified;
+                        } else {
+                            freshStory.narratives.push({
+                                id: narrativeData.id,
+                                name: narrativeData.name,
+                                last_modified: narrativeData.last_modified
+                            });
+                        }
 
-        // 3. Delete all associated Images
-        const deleteImagePromises = (story.characters || []).map(c => {
-            // Delete base image
-            const baseDelete = DBService.deleteImage(c.id);
-            // Delete all emotion images
-            const emotionDeletes = (c.extra_portraits || []).map(p => {
-                const emoKey = `${c.id}::emotion::${p.emotion}`;
-                return DBService.deleteImage(emoKey);
-            });
-            return Promise.all([baseDelete, ...emotionDeletes]);
-        });
+                        // D. Commit
+                        await DBService.saveStory(freshStory);
+                        console.log("Story saved successfully with settings.");
+                    }
+                } catch (err) {
+                    console.error("StoryService: Save Transaction Failed", err);
+                }
+            },
 
-        // 4. Wait for all children to be deleted
-        await Promise.all([...deleteNarrativePromises, ...deleteImagePromises]);
+            /**
+             * Creates a default story and narrative for a fresh start.
+             * @returns {Promise<{newStory: Object, newNarrative: Object}>}
+             */
+            async createDefaultStoryAndNarrative() {
+                const newStory = {
+                    id: UTILITY.uuid(), name: "My First Story", last_modified: new Date().toISOString(), created_date: new Date().toISOString(),
+                    ...UTILITY.getDefaultApiSettings(), ...UTILITY.getDefaultUiSettings(), ...UTILITY.getDefaultSystemPrompts(), ...UTILITY.getDefaultStorySettings(),
+                    characters: [
+                        { id: UTILITY.uuid(), name: "You", description: "The protagonist.", short_description: "The main character.", model_instructions: "Write a response for {character} in a creative and descriptive style.", is_user: true, is_active: true, image_url: '', extra_portraits: [], tags: [], is_narrator: false },
+                        { id: UTILITY.uuid(), name: "Narrator", description: "Describes the world.", short_description: "The storyteller.", model_instructions: "Act as a world-class storyteller.", is_user: false, is_active: true, image_url: '', extra_portraits: [], tags: [], color: { base: '#334155', bold: '#94a3b8' }, is_narrator: true }
+                    ],
+                    dynamic_entries: [{ id: UTILITY.uuid(), title: "Example Lorebook Entry", triggers: "example, .01%", content_fields: ["This is a sample dynamic lore entry."], current_index: 0, triggered_at_turn: null }],
+                    scenarios: [{ id: UTILITY.uuid(), name: "Default Start", message: "The story begins..." }],
+                    narratives: []
+                };
 
-        // 5. Delete the Story itself
-        await DBService.deleteStory(storyId);
-    },
+                const defaultScenario = newStory.scenarios[0];
+                const newNarrative = {
+                    id: UTILITY.uuid(), name: `${defaultScenario.name} - Chat`, last_modified: new Date().toISOString(),
+                    state: {
+                        chat_history: [], messageCounter: 0,
+                        static_entries: [{ id: UTILITY.uuid(), title: "World Overview", content: "A high-fantasy world." }],
+                        worldMap: { grid: UTILITY.createDefaultMapGrid(), currentLocation: { x: 4, y: 4 }, destination: { x: null, y: null }, path: [] }
+                    }
+                };
 
-    /**
-     * Deletes just one narrative from the database and updates its parent story.
-     * @param {string} storyId - The parent story ID.
-     * @param {string} narrativeId - The narrative to delete.
-     * @returns {Promise<object>} The updated story object.
-     */
-    async deleteNarrative(storyId, narrativeId) {
-        // 1. Get the parent story
-        const story = await DBService.getStory(storyId);
-        if (!story) throw new Error("Parent story not found.");
-
-        // 2. Delete the narrative itself from its store
-        await DBService.deleteNarrative(narrativeId);
-
-        // 3. Update the parent story's list of narrative stubs
-        story.narratives = story.narratives.filter(n => n.id !== narrativeId);
-
-        // 4. Save the updated story
-        await DBService.saveStory(story);
-        return story; // Return the updated story
-    },
-
-    /**
-     * Creates a new narrative and RESTORES the Story State from a scenario snapshot.
-     */
-    async createNarrativeFromScenario(storyId, scenarioId) {
-        // 1. Get the full story
-        const story = await DBService.getStory(storyId);
-        if (!story) throw new Error("Story not found");
-
-        // 2. Find the scenario to use as a template
-        const scenario = story.scenarios.find(sc => sc.id === scenarioId);
-        if (!scenario) throw new Error("Scenario not found");
-
-        // --- RESTORE STORY-LEVEL DATA ---
-        // If the scenario has snapshot data, we overwrite the current Story settings
-        // with the data preserved in the scenario.
-        if (scenario.dynamic_entries) story.dynamic_entries = JSON.parse(JSON.stringify(scenario.dynamic_entries));
-        if (scenario.prompts) Object.assign(story, scenario.prompts);
-
-        // Determine Active IDs from Scenario
-        // If the scenario has a specific list, use it. Otherwise, default to all.
-        const activeIDs = scenario.active_character_ids || story.characters.map(c => c.id);
-
-        // 3. Create the new full narrative object
-        const newNarrative = {
-            id: UTILITY.uuid(),
-            name: `${scenario.name} - Chat`,
-            last_modified: new Date().toISOString(),
-            // --- Save the active IDs ---
-            active_character_ids: activeIDs,
-            state: {
-                chat_history: [],
-                messageCounter: 0,
-                static_entries: scenario.static_entries ? JSON.parse(JSON.stringify(scenario.static_entries)) : [{ id: UTILITY.uuid(), title: "World Overview", content: "A high-fantasy world." }],
-                worldMap: scenario.worldMap ? JSON.parse(JSON.stringify(scenario.worldMap)) : { grid: UTILITY.createDefaultMapGrid(), currentLocation: { x: 4, y: 4 }, destination: { x: null, y: null }, path: [] }
-            }
-        };
-
-        // 4. Inject Example Dialogue
-        if (scenario.example_dialogue && Array.isArray(scenario.example_dialogue)) {
-            newNarrative.state.chat_history.push(...JSON.parse(JSON.stringify(scenario.example_dialogue)));
-        }
-
-        // 5. Add the first visible message
-        const firstMessage = scenario.message;
-        if (firstMessage) {
-            const firstSpeaker = story.characters.find(c => !c.is_user && c.is_active);
-            if (firstSpeaker) {
+                const firstSpeaker = newStory.characters.find(c => !c.is_user);
                 newNarrative.state.chat_history.push({
-                    character_id: firstSpeaker.id, content: firstMessage, type: 'chat',
-                    emotion: 'neutral', timestamp: new Date().toISOString(), isNew: true
+                    character_id: firstSpeaker.id, content: defaultScenario.message, type: 'chat', emotion: 'neutral', timestamp: new Date().toISOString(),
                 });
                 newNarrative.state.messageCounter = 1;
-            }
-        }
 
-        // 6. Save the new narrative
-        await DBService.saveNarrative(newNarrative);
+                newStory.narratives.push({ id: newNarrative.id, name: newNarrative.name });
 
-        // 7. Add the stub AND Save the UPDATED Story (with restored settings)
-        story.narratives.push({ id: newNarrative.id, name: newNarrative.name });
-        await DBService.saveStory(story);
+                await DBService.saveStory(newStory);
+                await DBService.saveNarrative(newNarrative);
 
-        return newNarrative;
-    },
+                return { newStory, newNarrative };
+            },
 
-    /**
-     * Updates a single field on a story object (e.g., name, tags).
-     * @param {string} storyId
-     * @param {string} field - The key to update (e.g., 'name', 'creator_notes')
-     * @param {*} value - The new value.
-     * @returns {Promise<object>} The updated story object.
-     */
-    async updateStoryField(storyId, field, value) {
-        // 1. Get the full story object
-        const story = await DBService.getStory(storyId);
-        if (!story) throw new Error("Story not found.");
+            /**
+             * Creates a new empty story.
+             * @returns {Promise<Object>} - The new story object.
+             */
+            async createNewStory() {
+                const newStory = {
+                    id: UTILITY.uuid(), name: "New Story", last_modified: new Date().toISOString(), created_date: new Date().toISOString(),
+                    ...UTILITY.getDefaultApiSettings(), ...UTILITY.getDefaultUiSettings(), ...UTILITY.getDefaultSystemPrompts(), ...UTILITY.getDefaultStorySettings(),
+                    search_index: "new story",
+                    characters: [
+                        { id: UTILITY.uuid(), name: "You", description: "The protagonist.", short_description: "The main character.", model_instructions: "Write a response for {character} in a creative and descriptive style.", is_user: true, is_active: true, image_url: '', extra_portraits: [], tags: [], is_narrator: false },
+                        { id: UTILITY.uuid(), name: "Narrator", description: "Describes the world.", short_description: "The storyteller.", model_instructions: "Act as a world-class storyteller.", is_user: false, is_active: true, image_url: '', extra_portraits: [], tags: [], color: { base: '#334155', bold: '#94a3b8' }, is_narrator: true }
+                    ],
+                    dynamic_entries: [{ id: UTILITY.uuid(), title: "Example Lorebook Entry", triggers: "example, 100%", content_fields: ["This is a sample dynamic lore entry."], current_index: 0, triggered_at_turn: null }],
+                    scenarios: [{ id: UTILITY.uuid(), name: "Default Start", message: "The story begins..." }],
+                    narratives: []
+                };
 
-        // 2. Update the field
-        story[field] = value;
-        story.last_modified = new Date().toISOString();
+                await DBService.saveStory(newStory);
+                return newStory;
+            },
 
-        // 3. Save the updated story back to the DB
-        await DBService.saveStory(story);
-        return story;
-    },
+            /**
+             * Deletes a story and all its associated data (narratives, images).
+             * @param {string} storyId - The ID of the story to delete.
+             * @returns {Promise<void>}
+             */
+            async deleteStory(storyId) {
+                const story = await DBService.getStory(storyId);
+                if (!story) return;
 
-    /**
-     * Exports the entire library (all stories, narratives, and images)
-     * from IndexedDB into a single ZIP file.
-     * @returns {Promise<Blob>} A promise that resolves with the ZIP blob.
-     */
-    async exportLibraryAsZip() {
-        console.log("StoryService: Starting library export...");
-        const zip = new JSZip();
+                const deleteNarrativePromises = (story.narratives || []).map(n_stub =>
+                    DBService.deleteNarrative(n_stub.id)
+                );
 
-        // 1. Create folders in the zip
-        const dataFolder = zip.folder("data");
-        const imageFolder = zip.folder("images");
-
-        // 2. Get all data from IndexedDB
-        const stories = await DBService.getAllStories();
-        const narratives = await DBService.getAllNarratives();
-        const images = await DBService.getAllEntries("characterImages");
-
-        // 3. Add JSON data to the zip
-        dataFolder.file("stories.json", JSON.stringify(stories, null, 2));
-        dataFolder.file("narratives.json", JSON.stringify(narratives, null, 2));
-
-        // 4. Add all images to the zip
-        if (images.length > 0) {
-          images.forEach(([key, blob]) => {
-            // The key (e.g., character ID) becomes the filename
-            imageFolder.file(key, blob);
-          });
-        }
-
-        console.log(`StoryService: Exporting ${stories.length} stories, ${narratives.length} narratives, and ${images.length} images.`);
-
-        // 5. Generate the final ZIP blob
-        return zip.generateAsync({
-          type: "blob",
-          compression: "DEFLATE",
-          compressionOptions: {
-            level: 6 // A good balance of speed and size
-          }
-        });
-    },
-
-    /**
-     * Imports a library from a ZIP file, completely replacing the
-     * existing library in IndexedDB.
-     * @param {File} file - The .zip file to import.
-     * @returns {Promise<void>}
-     */
-    async importLibraryFromZip(file) {
-        console.log("StoryService: Starting library import from ZIP...");
-
-        // 1. Load the ZIP file
-        const zip = await JSZip.loadAsync(file);
-
-        // 2. Clear all existing data from the database
-        // We run these in parallel for speed
-        await Promise.all([
-          DBService.clearStore("stories"),
-          DBService.clearStore("narratives"),
-          DBService.clearStore("characterImages")
-        ]);
-        console.log("StoryService: Existing database cleared.");
-
-        // 3. Import JSON data
-        // --- Import Stories ---
-        const storiesFile = zip.file("data/stories.json");
-        if (storiesFile) {
-          const stories = JSON.parse(await storiesFile.async("string"));
-          // Save each story one by one. Promise.all is fastest.
-          await Promise.all(stories.map(story => DBService.saveStory(story)));
-          console.log(`StoryService: Imported ${stories.length} stories.`);
-        }
-
-        // --- Import Narratives ---
-        const narrativesFile = zip.file("data/narratives.json");
-        if (narrativesFile) {
-          const narratives = JSON.parse(await narrativesFile.async("string"));
-          await Promise.all(narratives.map(narrative => DBService.saveNarrative(narrative)));
-          console.log(`StoryService: Imported ${narratives.length} narratives.`);
-        }
-
-        // 4. Import Images
-        const imageFolder = zip.folder("images");
-        if (imageFolder) {
-          const imageFiles = [];
-          imageFolder.forEach((relativePath, file) => {
-            // relativePath is the filename (e.g., character ID)
-            imageFiles.push({ key: relativePath, file: file });
-          });
-
-          // Process them all in parallel
-          await Promise.all(imageFiles.map(async (img) => {
-            const blob = await img.file.async("blob");
-            // The key is the filename, which is our ID
-            await DBService.saveImage(img.key, blob);
-          }));
-          console.log(`StoryService: Imported ${imageFiles.length} images.`);
-        }
-
-        console.log("StoryService: Library import complete.");
-    },
-
-    /**
-     * Builds a context string for a story, fetching data as needed.
-     * This is used by AI generation functions.
-     * @param {string} storyId
-     * @returns {Promise<string>} The context string.
-     */
-    async buildStoryContext(storyId) {
-        // 1. Get the full story object
-        const story = await DBService.getStory(storyId);
-        if (!story) return "No story found.";
-
-        let context = `Story Name: ${story.name}\n`;
-        context += `Creator's Note: ${story.creator_notes || 'N/A'}\n`;
-
-        // 2. Add character data
-        context += "Characters:\n";
-        (story.characters || []).forEach(c => {
-            context += `- ${c.name}: ${c.short_description}\n`;
-        });
-
-        // 3. Get sample lore from the *first narrative*
-        if (story.narratives && story.narratives.length > 0) {
-            // Fetch the full narrative object from its store
-            const firstNarrative = await DBService.getNarrative(story.narratives[0].id);
-            if (firstNarrative && firstNarrative.state) {
-                context += "\nWorld Lore (Sample):\n";
-                (firstNarrative.state.static_entries || []).slice(0, 5).forEach(e => {
-                    context += `- ${e.title}: ${e.content.substring(0, 100)}...\n`;
+                const deleteImagePromises = (story.characters || []).map(c => {
+                    const baseDelete = DBService.deleteImage(c.id);
+                    const emotionDeletes = (c.extra_portraits || []).map(p => {
+                        const emoKey = `${c.id}::emotion::${p.emotion}`;
+                        return DBService.deleteImage(emoKey);
+                    });
+                    return Promise.all([baseDelete, ...emotionDeletes]);
                 });
-            }
-        }
 
-        // 4. Add dynamic lore
-        if (story.dynamic_entries && story.dynamic_entries.length > 0) {
-            context += "\nDynamic Lore (Sample):\n";
-            story.dynamic_entries.slice(0, 5).forEach(e => {
-                context += `- ${e.title} (Triggers: ${e.triggers})\n`;
-            });
-        }
-        return context;
-    },
+                await Promise.all([...deleteNarrativePromises, ...deleteImagePromises]);
+                await DBService.deleteStory(storyId);
+            },
 
-    /**
-     * Runs the silent static update agent.
-     * @param {string} narrativeId - The active narrative to scan.
-     * @param {Array<object>} existingStaticEntries - The current list of static entries.
-     * @param {Array<object>} characters - The list of characters.
-     * @returns {Promise<number>} The number of new entries added.
-     */
-    async runSilentStaticUpdate(narrativeId, existingStaticEntries, characters) {
-        // 1. Get the full narrative data
-        const narrative = await DBService.getNarrative(narrativeId);
-        if (!narrative || !narrative.state) {
-            console.warn("Silent update skipped: No active narrative data.");
-            return 0;
-        }
+            /**
+             * Deletes a specific narrative from a story.
+             * @param {string} storyId - The ID of the parent story.
+             * @param {string} narrativeId - The ID of the narrative to delete.
+             * @returns {Promise<Object>} - The updated story object.
+             */
+            async deleteNarrative(storyId, narrativeId) {
+                const story = await DBService.getStory(storyId);
+                if (!story) throw new Error("Parent story not found.");
 
-        // 2. Get last 20 messages (approx 10 user turns)
-        const recentChat = (narrative.state.chat_history || [])
-            .filter(m => m.type === 'chat')
-            .slice(-20);
+                await DBService.deleteNarrative(narrativeId);
+                story.narratives = story.narratives.filter(n => n.id !== narrativeId);
+                await DBService.saveStory(story);
+                return story;
+            },
 
-        if (recentChat.length < 1) {
-            console.log("Silent update skipped: No recent chat.");
-            return 0;
-        }
+            /**
+             * Creates a new narrative based on a scenario.
+             * @param {string} storyId - The ID of the story.
+             * @param {string} scenarioId - The ID of the scenario.
+             * @returns {Promise<Object>} - The new narrative object.
+             */
+            async createNarrativeFromScenario(storyId, scenarioId) {
+                const story = await DBService.getStory(storyId);
+                if (!story) throw new Error("Story not found");
 
-        // 3. Build the transcript
-        let chatTranscript = "";
-        recentChat.forEach(msg => {
-            const c = (characters || []).find(i => i.id === msg.character_id);
-            if (c) chatTranscript += `${c.name}: ${msg.content}\n`;
-        });
+                const scenario = story.scenarios.find(sc => sc.id === scenarioId);
+                if (!scenario) throw new Error("Scenario not found");
 
-        // 4. Build the prompt
-        const prompt = `
-You are an AI Archivist. Your job is to read a chat transcript and identify NEW facts, character developments, or world-building details that are NOT already covered in the existing static knowledge.
-Respond with a valid JSON object: { "new_entries": [{"title": "A concise title", "content": "A detailed paragraph summarizing the new fact."}] } or { "new_entries": [] } if nothing new was established.
+                if (scenario.dynamic_entries) story.dynamic_entries = JSON.parse(JSON.stringify(scenario.dynamic_entries));
+                if (scenario.prompts) Object.assign(story, scenario.prompts);
 
-EXISTING STATIC KNOWLEDGE (Do NOT repeat info from here):
-${JSON.stringify(existingStaticEntries.map(e => e.title))}
+                const activeIDs = scenario.active_character_ids || story.characters.map(c => c.id);
 
-CHAT TRANSCRIPT:
-${chatTranscript}
+                const newNarrative = {
+                    id: UTILITY.uuid(),
+                    name: `${scenario.name} - Chat`,
+                    last_modified: new Date().toISOString(),
+                    active_character_ids: activeIDs,
+                    state: {
+                        chat_history: [],
+                        messageCounter: 0,
+                        static_entries: scenario.static_entries ? JSON.parse(JSON.stringify(scenario.static_entries)) : [{ id: UTILITY.uuid(), title: "World Overview", content: "A high-fantasy world." }],
+                        worldMap: scenario.worldMap ? JSON.parse(JSON.stringify(scenario.worldMap)) : { grid: UTILITY.createDefaultMapGrid(), currentLocation: { x: 4, y: 4 }, destination: { x: null, y: null }, path: [] }
+                    }
+                };
 
-Respond with JSON:
-`;
-        // 5. Call the AI
-        const updatesJson = await APIService.callAI(prompt, true);
-        const updates = JSON.parse(updatesJson);
-
-        // 6. Process the results
-        if (updates.new_entries && updates.new_entries.length > 0) {
-            let addedCount = 0;
-            updates.new_entries.forEach(item => {
-                // Check for duplicates
-                if (item.title && !existingStaticEntries.some(e => e.title.toLowerCase() === item.title.toLowerCase())) {
-                    existingStaticEntries.push({ id: UTILITY.uuid(), ...item });
-                    addedCount++;
+                if (scenario.example_dialogue && Array.isArray(scenario.example_dialogue)) {
+                    newNarrative.state.chat_history.push(...JSON.parse(JSON.stringify(scenario.example_dialogue)));
                 }
-            });
-            // The calling function (Controller) is responsible for saving the state
-            return addedCount;
-        }
-        return 0; // No new entries
-    },
 
-};
+                const firstMessage = scenario.message;
+                if (firstMessage) {
+                    const firstSpeaker = story.characters.find(c => !c.is_user && c.is_active);
+                    if (firstSpeaker) {
+                        newNarrative.state.chat_history.push({
+                            character_id: firstSpeaker.id, content: firstMessage, type: 'chat',
+                            emotion: 'neutral', timestamp: new Date().toISOString(), isNew: true
+                        });
+                        newNarrative.state.messageCounter = 1;
+                    }
+                }
+
+                // 1. Save the Narrative
+                await DBService.saveNarrative(newNarrative);
+
+                // 2. Update the Story with the new Narrative Stub
+                // Explicitly include last_modified to ensure DB consistency
+                story.narratives.push({
+                    id: newNarrative.id,
+                    name: newNarrative.name,
+                    last_modified: newNarrative.last_modified
+                });
+
+                // 3. Save the Story
+                await DBService.saveStory(story);
+
+                return newNarrative;
+            },
+
+            /**
+             * Updates a specific field of a story.
+             * @param {string} storyId - The ID of the story.
+             * @param {string} field - The field name to update.
+             * @param {*} value - The new value.
+             * @returns {Promise<Object>} - The updated story object.
+             */
+            async updateStoryField(storyId, field, value) {
+                const story = await DBService.getStory(storyId);
+                if (!story) throw new Error("Story not found.");
+
+                story[field] = value;
+                story.last_modified = new Date().toISOString();
+                await DBService.saveStory(story);
+                return story;
+            },
+
+            /**
+             * Exports the entire library as a ZIP file.
+             * @returns {Promise<Blob>} - The ZIP file blob.
+             */
+            async exportLibraryAsZip() {
+                console.log("StoryService: Starting library export...");
+
+                // 1. Force a save of the current state before exporting
+                if (typeof ReactiveStore !== 'undefined') {
+                    await ReactiveStore.forceSave();
+                }
+
+                const zip = new JSZip();
+                const dataFolder = zip.folder("data");
+                const imageFolder = zip.folder("images");
+
+                // 2. Export Stories
+                const stories = await DBService.getAllStories();
+                dataFolder.file("stories.json", JSON.stringify(stories, null, 2));
+
+                // 3. Export Narratives
+                const narratives = await DBService.getAllNarratives();
+                dataFolder.file("narratives.json", JSON.stringify(narratives, null, 2));
+
+                // 4. Export Images Iteratively (Memory Safe)
+                // Capture the report from iterateStore
+                const report = await DBService.iterateStore("characterImages", (key, blob) => {
+                    if (blob) {
+                        imageFolder.file(key, blob);
+                    } else {
+                        throw new Error("Blob was null in DB");
+                    }
+                });
+
+                const blob = await zip.generateAsync({
+                    type: "blob",
+                    compression: "DEFLATE",
+                    compressionOptions: { level: 6 }
+                });
+
+                return { blob, report };
+            },
+
+            /**
+             * Imports a library from a ZIP file, replacing existing data.
+             * @param {File} file - The ZIP file to import.
+             * @returns {Promise<void>}
+             */
+            async importLibraryFromZip(file) {
+                console.log("StoryService: Starting library import...");
+                const zip = await JSZip.loadAsync(file);
+
+                // 0. Pre-Flight Validation (Memory-Safe)
+                let stories = [];
+                let narratives = [];
+
+                const storiesFile = zip.file("data/stories.json");
+                if (storiesFile) {
+                    try {
+                        const str = await storiesFile.async("string");
+                        stories = JSON.parse(str);
+                    } catch (e) { throw new Error("Invalid 'stories.json' in backup file."); }
+                }
+
+                const narrativesFile = zip.file("data/narratives.json");
+                if (narrativesFile) {
+                    try {
+                        const str = await narrativesFile.async("string");
+                        narratives = JSON.parse(str);
+                    } catch (e) { throw new Error("Invalid 'narratives.json' in backup file."); }
+                }
+
+                // 1. Clear existing data (Only after validation passes)
+                await Promise.all([
+                    DBService.clearStore("stories"),
+                    DBService.clearStore("narratives"),
+                    DBService.clearStore("characterImages")
+                ]);
+
+                // 2. Import Stories
+                for (const story of stories) {
+                    const success = await DBService.saveStory(story);
+                    if (!success) throw new Error(`Failed to save story "${story.name || 'Unknown'}". Storage may be full.`);
+                }
+
+                // 3. Import Narratives
+                for (const narrative of narratives) {
+                    const success = await DBService.saveNarrative(narrative);
+                    if (!success) throw new Error(`Failed to save narrative "${narrative.name || 'Unknown'}". Storage may be full.`);
+                }
+
+                // 4. Import Images
+                const imageFolder = zip.folder("images");
+                if (imageFolder) {
+                    const imageFiles = [];
+                    imageFolder.forEach((relativePath, file) => {
+                        imageFiles.push({ key: relativePath, file: file });
+                    });
+
+                    // Process images sequentially
+                    for (const img of imageFiles) {
+                        const blob = await img.file.async("blob");
+                        const success = await DBService.saveImage(img.key, blob);
+                        if (!success) throw new Error(`Failed to save image "${img.key}". Storage Quota Exceeded?`);
+                    }
+                }
+            },
+
+            /**
+             * Builds a context string for a story, including characters and lore.
+             * @param {string} storyId - The ID of the story.
+             * @returns {Promise<string>} - The context string.
+             */
+            async buildStoryContext(storyId) {
+                const story = await DBService.getStory(storyId);
+                if (!story) return "No story found.";
+
+                let context = `Story Name: ${story.name}\n`;
+                context += `Creator's Note: ${story.creator_notes || 'N/A'}\n`;
+                context += "Characters:\n";
+                (story.characters || []).forEach(c => {
+                    context += `- ${c.name}: ${c.short_description}\n`;
+                });
+
+                if (story.narratives && story.narratives.length > 0) {
+                    const firstNarrative = await DBService.getNarrative(story.narratives[0].id);
+                    if (firstNarrative && firstNarrative.state) {
+                        context += "\nWorld Lore (Sample):\n";
+                        (firstNarrative.state.static_entries || []).slice(0, 5).forEach(e => {
+                            context += `- ${e.title}: ${e.content.substring(0, 100)}...\n`;
+                        });
+                    }
+                }
+
+                if (story.dynamic_entries && story.dynamic_entries.length > 0) {
+                    context += "\nDynamic Lore (Sample):\n";
+                    story.dynamic_entries.slice(0, 5).forEach(e => {
+                        context += `- ${e.title} (Triggers: ${e.triggers})\n`;
+                    });
+                }
+                return context;
+            },
+        };

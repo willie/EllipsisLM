@@ -1,425 +1,674 @@
-/**
- * EllipsisLM - Main Stylesheet
- * Extracted from monolithic index.html for better maintainability
- */
+/* ==========================================================================
+           1. CSS VARIABLES & THEME
+           ========================================================================== */
+        :root {
+            /* Typography */
+            --font-primary: 'Inter', sans-serif;
+            --chat-font-family: 'Inter', sans-serif;
+            --chat-font-size: 16px;
 
-:root {
-    --font-primary: 'Inter', sans-serif;
-    --text-primary: #e5e7eb;
-    --text-secondary: #cbd5e1;
-    --text-accent: #a5b4fc;
+            /* Colors */
+            --text-primary: #e5e7eb;
+            --text-secondary: #cbd5e1;
+            --text-accent: #a5b4fc;
+            --chat-text-color: #e5e7eb;
 
-    --surface-glass: rgba(17, 24, 39, 0.15);
-    --surface-card: rgba(55, 65, 81, 0.6);
-    --surface-overlay: rgba(0, 0, 0, 0.4);
+            /* Surfaces */
+            --surface-glass: rgba(17, 24, 39, 0.15);
+            --surface-card: rgba(55, 65, 81, 0.6);
+            --surface-overlay: rgba(0, 0, 0, 0.6);
 
-    --border-primary: var(--border-hue-color, rgba(75, 85, 99, 0.8));
-    --border-hue-color: rgba(75, 85, 99, 0.8);
-    --brand-color: #6366f1; /* Indigo */
-    --brand-color-toggle: #4f46e5;
+            /* Brand */
+            --border-hue-color: rgba(75, 85, 99, 0.8);
+            --border-primary: var(--border-hue-color);
+            --brand-color: #6366f1;
+            --brand-color-hover: #4f46e5;
 
-    --scrollbar-thumb: #4b5563;
+            /* Dimensions */
+            --border-radius-md: 0.75rem;
+            --border-radius-sm: 4px;
+            --bubble-image-size: 100px;
 
-    --border-radius-md: 0.75rem;
-    --border-radius-sm: 4px;
+            /* Animation */
+            --transition-fast: 0.2s ease-in-out;
+            --transition-medium: 0.4s ease-out;
+        }
 
-    --transition-fast: 0.2s ease-in-out;
-    --transition-medium: 0.4s ease-out;
-    --transition-slow: 0.5s ease-in-out;
+        /* ==========================================================================
+           2. RESET & BASE STYLES
+           ========================================================================== */
+        html,
+        body {
+            height: 100%;
+            height: 100dvh;
+            width: 100%;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
 
-    /* Appearance Variables */
-    --chat-font-size: 16px;
-    --bubble-image-size: 100px;
-}
+        body {
+            font-family: var(--font-primary);
+            color: var(--text-primary);
+            background-color: #111827;
+        }
 
-html, body {
-    height: 100%;
-    overflow: hidden;
-}
+        /* Form Elements: Custom styling to remove default browser outlines and unify appearance */
+        input,
+        textarea,
+        select {
+            color: var(--text-primary);
+            background-color: rgba(17, 24, 39, 0.7);
+            font-family: inherit;
+        }
 
-body {
-    font-family: var(--font-primary);
-    color: #e5e7eb;
-}
+        input::placeholder,
+        textarea::placeholder {
+            color: #9ca3af;
+        }
 
-/* Global styles for form elements to ensure readability on dark backgrounds */
-input, textarea, select {
-    color: var(--text-primary);
-    background-color: rgba(0,0,0,0.7);
-    border: 1px solid var(--border-primary);
-}
-input::placeholder, textarea::placeholder {
-    color: #9ca3af; /* Tailwind gray-400 */
-}
-input:focus, textarea:focus, select:focus {
-    outline: 2px solid var(--brand-color);
-    outline-offset: -1px;
-    border-color: var(--brand-color);
-}
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+        }
 
+        .glass-bg {
+            background-color: var(--surface-glass);
+            -webkit-backdrop-filter: blur(5px);
+            backdrop-filter: blur(5px);
+        }
 
-.glass-bg {
-    background-color: var(--surface-glass);
-    backdrop-filter: blur(5px);
-}
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
 
-/* --- Scrollbar Styling --- */
-/* --- Visible Chat Scrollbar (Horizontal) --- */
-body.layout-horizontal #chat-window::-webkit-scrollbar-track {
-    background: rgba(31, 41, 55, 0.5); /* dark-gray-800 at 50% opacity */
-}
-body.layout-horizontal #chat-window::-webkit-scrollbar-thumb {
-    background: rgba(31, 41, 55, 0.5);
-}
-::-webkit-scrollbar { width: 12px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: var(--border-radius-sm);
-}
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
 
-/* --- Component Styling --- */
-.character-card {
-    background-color: var(--surface-card);
-    backdrop-filter: blur(4px);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--border-radius-md);
-}
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
 
-.modal-overlay {
-    background-color: var(--surface-overlay);
-}
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
 
-.details-scroll-container::-webkit-scrollbar-track {
-    background: rgba(31, 41, 55, 0.5); /* dark-gray-800 at 50% opacity */
-}
+        /* ==========================================================================
+           3. LAYOUT & RESPONSIVENESS
+           ========================================================================== */
 
-.toggle-bg:after {
-    content: '';
-    position: absolute;
-    top: 0.125rem;
-    left: 0.125rem;
-    background-color: white;
-    border-radius: 9999px;
-    height: 1.25rem;
-    width: 1.25rem;
-    /* Animate 'left' instead of 'transform' */
-    transition: left var(--transition-fast), background-color var(--transition-fast);
-}
+        #app-container {
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            transition: backdrop-filter 0.3s ease;
+        }
 
-input:checked + .toggle-bg {
-    background-color: rgb(56 189 248 / var(--tw-text-opacity, 1));
-}
+        /* --- Vertical Layout (Mobile) --- */
+        body.layout-vertical #desktop-header {
+            display: none;
+        }
 
-input:checked + .toggle-bg:after {
-    /* This value is (Bar Width) - (Knob Width) - (Right Padding) */
-    /* 3rem - 1.25rem - 0.125rem = 1.625rem */
-    left: 1.625rem;
-}
+        body.layout-vertical #mobile-header {
+            display: flex;
+        }
 
+        body.layout-vertical #app-container {
+            padding: 0;
+        }
 
+        body.layout-vertical #main-header {
+            position: absolute;
+            top: env(safe-area-inset-top);
+            left: 0;
+            right: 0;
+            z-index: 60;
+            padding: 0.5rem;
+            pointer-events: none;
+        }
 
-/* --- Character Roster Button Styling --- */
-.char-roster-btn {
-    position: relative;
-    background-size: cover;
-    background-position: center 25%; /* Focus on the upper part of the image */
-    border-radius: 0.75rem;
-    overflow: hidden;
-    aspect-ratio: 3 / 4;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    border: 1px solid var(--border-primary);
-    cursor: pointer;
-}
-.char-roster-btn:hover {
-    transform: scale(1.03);
-    box-shadow: 0 0 15px rgba(129, 140, 248, 0.4);
-}
-.char-roster-btn::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 70%;
-    background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
-    pointer-events: none;
-}
-.char-roster-content {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 1rem;
-    z-index: 10;
-}
-/* --- End Character Roster Button Styling --- */
+        body.layout-vertical #hamburger-menu-button-container {
+            pointer-events: auto;
+            opacity: 0.6;
+            z-index: 51;
+            position: relative;
+        }
 
+        body.layout-vertical #hamburger-menu-button-container:hover {
+            opacity: 1;
+        }
 
-/* --- Chat Components --- */
-#chat-window {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-#chat-window h1,
-#chat-window h2,
-#chat-window h3 {
-    font-weight: bold;
-    margin-bottom: 0.0rem;
-}
-#chat-window h1 { font-size: 1.5em; }
-#chat-window h2 { font-size: 1.25em; }
-#chat-window h3 { font-size: 1.1em; }
+        body.layout-vertical #chat-window-container {
+            margin: 0 !important;
+            border-radius: 0;
+            width: 100%;
+        }
 
-#chat-window blockquote {
-    border-left: 3px solid var(--brand-color);
-    padding-left: 1rem;
-    margin: 0.5rem 0;
-    color: var(--text-secondary);
-    font-style: italic;
-    font-weight: bold;
-}
+        body.layout-vertical #character-portrait-container {
+            display: none;
+        }
 
-#chat-window em {
-    color: var(--text-accent);
-    font-style: italic;
-}
+        body.layout-vertical #chat-input-container {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+            background: rgba(17, 24, 39, 0.5);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+        }
 
-.chat-bubble-container {
-    width: 100%;
-    max-width: 1000px;
-    align-content: center;
-}
+        /* --- Horizontal Layout (Desktop) --- */
+        body.layout-horizontal #desktop-header {
+            display: flex;
+        }
 
-.bubble-header {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem 0.25rem;
-}
+        body.layout-horizontal #mobile-header {
+            display: none;
+        }
 
-.bubble-header .timestamp {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-}
+        body.layout-horizontal #app-container {
+            padding: .5rem;
+        }
 
-.bubble-char-image {
-    float: left;
-    width: var(--bubble-image-size);
-    height: auto;
-    border-radius: 0.5rem;
-    margin-right: 1rem;
-    margin-bottom: 0.5rem;
-}
+        body.layout-horizontal #chat-window-container {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: var(--border-radius-md);
+            justify-content: space-between;
+        }
 
-.bubble-body { font-size: var(--chat-font-size); }
-.bubble-body .whitespace-pre-wrap {
-    overflow: hidden; /* BFC to contain the float */
-    white-space: normal;
-}
-.bubble-body .whitespace-pre-wrap p {
-    margin: 0;
-    white-space: normal;
-}
-.bubble-body .whitespace-pre-wrap p + p {
-    margin-top: 0.75em;
-}
+        body.layout-horizontal #chat-input-container {
+            background: rgba(17, 24, 39, 0.5);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius-md);
+        }
 
-/* Style for scrolling memory lists */
-#static-entries-list, #dynamic-entries-list {
-    overflow-y: auto;
-    /* max-height: 20rem; Corresponds to roughly 6-7 entries */
-    min-height: 0; /* Important for flex/grid children to respect max-height */
-}
+        body.layout-horizontal #chat-window {
+            width: 65%;
+            margin: 0 auto;
+        }
 
-/* --- Hover & Animation Effects --- */
-.chat-bubble-container:hover .action-btn-group,
-.chat-bubble-container:hover .timestamp {
-    opacity: 1;
-}
+        body.layout-horizontal #character-portrait-container {
+            display: flex;
+            width: 35%;
+            height: 100%;
+            justify-content: center;
+            align-items: inherit;
+        }
 
-.action-btn-group, .timestamp {
-    opacity: 0;
-    transition: opacity var(--transition-fast);
-}
+        body.layout-horizontal #title-trigger-area {
+            display: none;
+        }
 
-#character-portrait-container img {
-    transition: opacity var(--transition-slow);
-}
+        /* FIX: Hide redundant close button in horizontal mode */
+        body.layout-horizontal .story-details-close-btn {
+            display: none;
+        }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
+        #mobile-story-title-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 50;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
+            padding-top: calc(0.5rem + env(safe-area-inset-top));
+            padding-bottom: 1rem;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            border: none;
+            border-bottom: none;
+            color: var(--chat-text-color);
+            font-family: var(--chat-font-family);
+        }
 
-@keyframes pulseOpacity {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-}
+        #mobile-story-title-overlay:focus,
+        #mobile-story-title-overlay:hover {
+            opacity: 1 !important;
+            pointer-events: auto;
+        }
 
-.typing-bubble-pulse {
-    animation: pulseOpacity 1.5s ease-in-out infinite;
-}
+        /* ==========================================================================
+           4. COMPONENTS
+           ========================================================================== */
 
-.chat-bubble-container.new-message {
-    animation: fadeIn var(--transition-medium);
-}
+        /* Character Roster Card */
+        .char-roster-btn {
+            position: relative;
+            background-size: cover;
+            background-position: center 20%;
+            border-radius: var(--border-radius-md);
+            overflow: hidden;
+            aspect-ratio: 3 / 4;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+        }
 
-/* --- Layout Management & Responsiveness --- */
+        .char-roster-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        }
 
-/* Default to Vertical/Mobile layout first */
-#desktop-header { display: none; }
-#mobile-header { display: flex; }
+        .char-roster-btn::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60%;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+            pointer-events: none;
+        }
 
-body.layout-vertical #app-container { padding: 0; }
-body.layout-vertical #main-header { position: fixed; top: calc(.0rem + env(safe-area-inset-top)); left: 0; right: 0; z-index: 52; margin: 0; padding: 0.5rem; background: transparent; pointer-events: none; }
-body.layout-vertical #hamburger-menu-button-container { opacity: 0.3; transition: opacity 0.3s ease; pointer-events: auto; position: relative; z-index: 52;}
-body.layout-vertical #hamburger-menu-button-container:hover { opacity: 1; }
-body.layout-vertical #mobile-story-title-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    z-index: 51; /* Increased to 51 to sit above the main header */
-    background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
-    padding: .3rem;
-    padding-top: calc(.3rem + env(safe-area-inset-top)); /* Pushes text below the notch */
-    text-align: center;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: auto;
-}
+        .char-roster-content {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            z-index: 10;
+        }
 
-/* Keeps the title visible when you hover over it or click to edit */
-body.layout-vertical #mobile-story-title-overlay:hover,
-body.layout-vertical #mobile-story-title-overlay:focus {
-    opacity: 1 !important;
-}
-body.layout-vertical #chat-window-container { justify-content: center; border-radius: 0; margin-bottom: 0 !important; }
-body.layout-vertical #chat-window { width: 99%; }
-body.layout-vertical #character-portrait-container { display: none; }
-body.layout-vertical #chat-input-container {
-    padding-top: 1rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
+        .modal-overlay {
+            background-color: var(--surface-overlay);
+            backdrop-filter: blur(2px);
+        }
 
-    /* We use calc() to add your original 1rem padding
-      to the OS's reported safe-area-inset-bottom.
-      This is 0px on desktop but has a value on mobile.
-    */
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+        /* Edit Response Modal: Set to occupy 2/3 of the viewport height for better visibility */
+        #edit-response-modal>div:not(.modal-overlay) {
+            height: 66vh !important;
+            max-height: 90vh !important;
+            display: flex;
+            flex-direction: column;
+        }
 
-    border-top: 1px solid;
-    border-top-color: color-mix(in srgb, var(--chat-text-color) 50%, transparent);
-}
+        /* Ensure text area fills the modal */
+        #edit-response-modal textarea {
+            height: 100% !important;
+            flex-grow: 1;
+        }
 
-/* Horizontal (Desktop) Layout Overrides */
-body.layout-horizontal #desktop-header { display: flex; }
-body.layout-horizontal #mobile-header { display: none; }
-body.layout-horizontal #app-container { padding: 0.5rem; }
-body.layout-horizontal #chat-window-container { justify-content: space-between; }
-body.layout-horizontal #chat-window { width: 66.66%; }
-body.layout-horizontal #character-portrait-container { display: flex; width: 33.33%; }
-body.layout-horizontal #mobile-header-elements { display: none !important; }
+        /* Toggle Switch */
+        .toggle-bg {
+            transition: background-color var(--transition-fast);
+        }
 
-/* --- Cinematic Mode Overhaul --- */
-body[data-mode="cinematic_overlay"] #cinematic-bg-1,
-body[data-mode="cinematic_overlay"] #cinematic-bg-2 {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    background-size: auto 100%; /* Sets height to 100%, width scales automatically */
-    /* This centers the image horizontally, so it crops from the sides: */
-    background-position: center top;
-    background-repeat: no-repeat;
-}
-body[data-mode="cinematic_overlay"] #app-container {
-    background: transparent;
-    backdrop-filter: none; /* Prevents containing the fixed-position background */
-    padding: 0rem;
-}
-body[data-mode="cinematic_overlay"] main {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end; /* Pushes content to the bottom */
-}
-body[data-mode="cinematic_overlay"] #chat-window-container {
-    flex-grow: 0; /* Prevent it from taking full height */
-    height: 33.33vh;
-    background: transparent;
-    position: relative; /* For the gradient */
-}
-body[data-mode="cinematic_overlay"] #chat-window-container::before {
-    content: '';
-    position: absolute;
-    top: -100px;
-    left: 0;
-    right: 0;
-    height: 100px;
-    background: linear-gradient(to bottom, transparent, rgba(17, 24, 39, 0.8));
-    pointer-events: none;
-    z-index: 20;
-}
-body[data-mode="cinematic_overlay"] #chat-window {
-    background: transparent;
-}
-body[data-mode="cinematic_overlay"] #chat-input-container {
-    background-color: rgba(17, 24, 39, 0.7);
-    backdrop-filter: blur(5px);
-}
-/* Specific fix for horizontal cinematic mode */
-body.layout-horizontal[data-mode="cinematic_overlay"] #character-portrait-container {
-    display: none;
-}
-body.layout-horizontal[data-mode="cinematic_overlay"] #chat-window {
-    width: 100%; /* Take full width since side portrait is gone */
-}
+        .toggle-bg:after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 1.25rem;
+            height: 1.25rem;
+            background: white;
+            border-radius: 50%;
+            transition: left var(--transition-fast);
+        }
 
-/* Make header float over cinematic background in horizontal mode */
-body.layout-horizontal[data-mode="cinematic_overlay"] #main-header {
-    position: absolute;
-    top: 0.0rem;      /* Match app-container padding */
-    left: 0.5rem;
-    right: 0.5rem;
-    z-index: 50;      /* Ensure it's on top of other elements */
-    margin-bottom: 0; /* Override default margin */
-    padding-top: 1rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    background: linear-gradient(to bottom, rgba(17, 24, 39, 0.6), transparent);
-    border-radius: 0.75rem 0.75rem 0 0;
-}
+        input:checked+.toggle-bg {
+            background-color: var(--brand-color);
+        }
 
-/* Styling for quoted dialogue in chat bubbles */
-.dialogue-quote {
-    filter: saturate(175%) opacity(75%) drop-shadow(1px 1px 5px black);
-    font-weight: 500;          /* Makes the text slightly bolder than normal */
-}
+        input:checked+.toggle-bg:after {
+            left: calc(100% - 2px - 1.25rem);
+        }
 
-/* Push the first message bubble down from the top so that it's controls are accessible. */
-#chat-window .chat-bubble-container:first-child {
-    margin-top: 3rem; /* Adjust this value as needed */
-}
+        /* ==========================================================================
+           5. CHAT WINDOW STYLING
+           ========================================================================== */
+        #chat-window {
+            display: flex;
+            flex-direction: column;
+        }
 
-#chat-window .chat-bubble-container:last-child {
-    margin-bottom: 1rem; /* Adjust this value as needed */
-}
+        /* Vertical Mode Adjustment: Push top bubble down to prevent overlap with the header */
+        body.layout-vertical #chat-window {
+            padding-top: 4rem;
+        }
 
-/* By default (mobile-first / layout-vertical), show the title and hide the balancer */
-.story-details-title-input {
-    display: block;
-}
-.story-details-title-balancer {
-    display: none;
-}
+        /* Markdown Styles */
+        /* Markdown Styles: Controlled via CSS Variables for theming support */
+        #chat-window h1 {
+            color: var(--md-h1-color, #818cf8);
+            font-family: var(--md-h1-font, var(--chat-font-family));
+            font-size: 1.5em;
+            font-weight: 700;
+            margin: 0.5em 0;
+        }
 
-/* When in horizontal/desktop layout, hide the title and show the balancer */
-body.layout-horizontal .story-details-title-input {
-    display: none;
-}
-body.layout-horizontal .story-details-title-balancer {
-    display: block;
-}
+        #chat-window h2 {
+            color: var(--md-h2-color, #a5b4fc);
+            font-family: var(--md-h2-font, var(--chat-font-family));
+            font-size: 1.25em;
+            font-weight: 600;
+            margin: 0.4em 0;
+        }
+
+        #chat-window h3 {
+            color: var(--md-h3-color, #c7d2fe);
+            font-family: var(--md-h3-font, var(--chat-font-family));
+            font-size: 1.1em;
+            font-weight: 600;
+            margin: 0.3em 0;
+        }
+
+        /* Bold Text: Uses the CSS variable for dynamic coloring */
+        #chat-window strong {
+            color: var(--md-bold-color, #ffffff);
+            font-family: var(--md-bold-font, var(--chat-font-family));
+            font-weight: 700;
+        }
+
+        #chat-window em {
+            color: var(--md-italic-color, #9ca3af);
+            font-family: var(--md-italic-font, var(--chat-font-family));
+        }
+
+        #chat-window blockquote {
+            border-left: 3px solid var(--brand-color);
+            padding-left: 1rem;
+            color: var(--md-quote-color, #9ca3af);
+            font-family: var(--md-quote-font, var(--chat-font-family));
+            font-style: italic;
+        }
+
+        /* Smart Quotation Formatting 
+           Uses dynamic variables to toggle between the default "Filtered" look 
+           and a specific "User Color" look. */
+        .dialogue-quote {
+            color: var(--active-quote-color, inherit);
+            filter: var(--active-quote-filter, saturate(175%) opacity(75%) drop-shadow(1px 1px 5px black));
+            font-family: var(--md-quote-font, inherit);
+            font-weight: 500;
+        }
+
+        /* Bubble Container */
+        .chat-bubble-container {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto 1rem auto;
+            animation: fadeIn var(--transition-medium);
+        }
+
+        .bubble-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 0 0.5rem 0.25rem 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        /* Timestamps: Hidden by default to reduce clutter, revealed on hover */
+        .bubble-header .timestamp {
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+
+        .chat-bubble-container:hover .bubble-header .timestamp {
+            opacity: 1;
+        }
+
+        /* Bubble Styling: Sizing constraints and shadow effects */
+        .bubble-body {
+            font-size: var(--chat-font-size);
+            font-family: var(--chat-font-family);
+            position: relative;
+            border: none;
+            /* No outline */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+            /* Shrink to fit text, but max out at page width */
+            width: fit-content;
+            min-width: 120px;
+            max-width: 100%;
+
+            display: flow-root;
+        }
+
+        .bubble-body .whitespace-pre-wrap {
+            /* This tells the browser: "If there is a newline character, show it." */
+            white-space: pre-wrap !important;
+            word-wrap: break-word;
+            /* Prevent long words from breaking layout */
+        }
+
+        .bubble-char-image {
+            float: left;
+            width: var(--bubble-image-size);
+            height: auto;
+            border-radius: 0.5rem;
+            margin-right: 1rem;
+            margin-bottom: 0.5rem;
+            shape-outside: margin-box;
+        }
+
+        /* Restore natural spacing for Markdown elements inside bubbles */
+        .bubble-body p {
+            margin-bottom: 0.0rem;
+            /* Space between paragraphs */
+        }
+
+        .bubble-body p:last-child {
+            margin-bottom: 0;
+            /* No space after the last paragraph */
+        }
+
+        .bubble-body ul,
+        .bubble-body ol {
+            margin-bottom: 0.5rem;
+            padding-left: 1.5rem;
+            /* Indent lists */
+        }
+
+        .bubble-body li {
+            list-style-type: disc;
+            /* Restore bullet points */
+        }
+
+        .action-btn-group {
+            opacity: 0;
+            /* FIX: Add delay ONLY when hiding (mouse out) so cursor can bridge the gap */
+            transition: opacity 0.2s ease-in-out 0.4s;
+        }
+
+        .chat-bubble-container:hover .action-btn-group {
+            opacity: 1;
+            /* FIX: Instant show on hover */
+            transition-delay: 0s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulseOpacity {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .typing-bubble-pulse {
+            animation: pulseOpacity 1.5s infinite;
+        }
+
+        /* ==========================================================================
+           6. CINEMATIC MODE STYLES
+           ========================================================================== */
+        body[data-mode="cinematic_overlay"] #app-container {
+            background: transparent;
+            backdrop-filter: none;
+        }
+
+        body[data-mode="cinematic_overlay"] #cinematic-bg-1,
+        body[data-mode="cinematic_overlay"] #cinematic-bg-2 {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-size: auto 100%;
+            background-position: center top;
+            transition: opacity 1s ease-in-out;
+            pointer-events: none;
+        }
+
+        /* Chat Window Container - Bottom 1/3 Position */
+        body[data-mode="cinematic_overlay"] #chat-window-container {
+            align-items: flex-end;
+            margin-top: auto !important;
+            /* Force bottom alignment, overriding vertical layout defaults */
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%);
+            border: none;
+            border-radius: 0;
+            /* Flush edges look better in cinematic */
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%);
+            /* Fade out text at the very top */
+            mask-image: linear-gradient(to bottom, transparent, black 15%);
+        }
+
+        body[data-mode="cinematic_overlay"] #character-portrait-container {
+            display: none !important;
+        }
+
+        /* Internal Chat Alignment: Forces text to the bottom of the container */
+        body[data-mode="cinematic_overlay"] #chat-window {
+            width: 100% !important;
+            height: 33%;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 0.5rem;
+        }
+
+        /* This is the key trick: Auto margin on the first child pushes 
+           the whole stack of messages to the bottom of the flex container */
+        body[data-mode="cinematic_overlay"] #chat-window> :first-child {
+            margin-top: auto !important;
+        }
+
+        /* Bubble Styling for Cinematic Mode: Adds blur for readability against backgrounds */
+        body[data-mode="cinematic_overlay"] .bubble-body {
+            backdrop-filter: blur(6px);
+        }
+
+        /* Input Area Visibility: Ensures input remains visible and readable in cinematic mode */
+        body[data-mode="cinematic_overlay"] #chat-input-container {
+            background-color: #0f172a;
+            /* Solid dark color for readability */
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            position: relative;
+            z-index: 20;
+            padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        }
+
+        /* Visual settings sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            height: 6px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            background: var(--brand-color);
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Custom Radio Button: Robust Implementation using Sibling Pseudo-elements */
+        input[type="radio"].custom-radio {
+            /* FORCE Hide the actual input visually */
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            opacity: 0 !important;
+            position: absolute !important;
+            margin: 0 !important;
+            pointer-events: none;
+        }
+
+        /* The text span acts as the visual container */
+        input[type="radio"].custom-radio+span {
+            position: relative;
+            padding-left: 1.75rem;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            min-height: 1.5rem;
+        }
+
+        /* Outer Circle */
+        input[type="radio"].custom-radio+span::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid #6b7280;
+            border-radius: 50%;
+            /* Explicit dark background to prevent "white fill" from underlying elements */
+            background-color: #1f2937;
+            transition: border-color var(--transition-fast), background-color var(--transition-fast);
+            box-sizing: border-box;
+        }
+
+        /* Inner Dot */
+        input[type="radio"].custom-radio+span::after {
+            content: "";
+            position: absolute;
+            left: 0.3125rem;
+            top: 50%;
+            transform: translateY(-50%) scale(0);
+            width: 0.625rem;
+            height: 0.625rem;
+
+            input[type="radio"].custom-radio:checked+span::after {
+                transform: translateY(-50%) scale(1);
+            }
+
+            /* 3. Gen Story Modal Inputs (Edit-Before-Commit) */
+            .gen-input {
+                background-color: rgba(0, 0, 0, 0.3);
+                border: 1px solid #4b5563;
+                color: white;
+                padding: 0.5rem;
+                border-radius: 0.5rem;
+                width: 100%;
+                transition: border-color 0.2s;
+            }
+
+            .gen-input:focus {
+                border-color: #6366f1;
+                outline: none;
+            }

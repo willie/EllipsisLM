@@ -29,7 +29,7 @@
 
     <!-- Application Styles -->
     <style>
-        /* ==========================================================================
+/* ==========================================================================
            1. CSS VARIABLES & THEME
            ========================================================================== */
         :root {
@@ -703,7 +703,7 @@
                 border-color: #6366f1;
                 outline: none;
             }
-    </style>
+</style>
 
 
 
@@ -2052,10 +2052,9 @@
 
 
 
-    <!-- Application Logic -->
     <script>
-
-        /**
+// === js/preamble.js ===
+/**
          * Application Build Information
          * Update this variable to change the footer in Appearance Settings.
          */
@@ -2065,6 +2064,10 @@
         /**
          * HTML Sanitizer
          */
+
+        const debounce = (func, wait) => { let timeout; return function (...args) { const context = this; clearTimeout(timeout); timeout = setTimeout(() => func.apply(context, args), wait); }; };
+
+// === js/services/utility.js ===
         const DOM = {
             SafeString: class {
                 constructor(str) { this.str = str; }
@@ -2099,17 +2102,6 @@
             }
         };
 
-        /**
-         * =================================================================================================
-         * BLOCK 1: ActionHandler Module
-         * Centralized Event Delegation
-         * =================================================================================================
-         */
-        /**
-         * ActionHandler Module
-         * Centralized Event Delegation for handling user interactions efficiently.
-         * Registers handlers for data-action attributes and manages global event listeners.
-         */
         const ActionHandler = {
             actions: {},
 
@@ -2162,17 +2154,261 @@
             }
         };
 
-        // Utility function to prevent a function from being called too frequently.
-        const debounce = (func, wait) => { let timeout; return function (...args) { const context = this; clearTimeout(timeout); timeout = setTimeout(() => func.apply(context, args), wait); }; };
+        const UTILITY = {
+            /**
+             * Generates a UUID v4.
+             * @returns {string}
+             */
+            uuid() {
+                return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+            },
+            /**
+             * Escapes HTML characters to prevent XSS.
+             * @param {string} str - The string to escape.
+             * @returns {string}
+             */
+            escapeHTML(str) {
+                if (typeof str !== 'string') return '';
+                const p = document.createElement("p");
+                p.textContent = str;
+                return p.innerHTML;
+            },
 
-        /**
-         * DBService (resilient, fail-soft, self-initializing)
-         */
-        /**
-         * DBService
-         * A resilient, fail-soft wrapper for IndexedDB to handle persistent storage.
-         * Includes self-initialization, error handling for restricted environments, and transaction management.
-         */
+            /**
+             * Safely extracts and parses JSON from a string, handling markdown code blocks.
+             * @param {string} str - The string containing JSON.
+             * @returns {Object|null} - The parsed object or null.
+             */
+            extractAndParseJSON(str) {
+                if (!str) return null;
+                // Remove markdown
+                let clean = str.replace(/```json\s*/g, '').replace(/```/g, '').trim();
+                try {
+                    return JSON.parse(clean);
+                } catch (e) {
+                    // Regex fallback
+                    const match = str.match(/\{[\s\S]*\}/);
+                    if (match) {
+                        try { return JSON.parse(match[0]); } catch (e2) { return null; }
+                    }
+                    return null;
+                }
+            },
+
+            /**
+             * Converts a hex color to RGBA.
+             * @param {string} hex - The hex color string.
+             * @param {number} alpha - The alpha value (0-1).
+             * @returns {string}
+             */
+            hexToRgba(hex, alpha) {
+                let r = 0, g = 0, b = 0;
+                if (hex.length == 4) { r = "0x" + hex[1] + hex[1]; g = "0x" + hex[2] + hex[2]; b = "0x" + hex[3] + hex[3]; }
+                else if (hex.length == 7) { r = "0x" + hex[1] + hex[2]; g = "0x" + hex[3] + hex[4]; b = "0x" + hex[5] + hex[6]; }
+                return `rgba(${+r},${+g},${+b},${alpha})`;
+            },
+            /**
+             * Darkens a hex color by a percentage.
+             * @param {string} hex - The hex color string.
+             * @param {number} percent - The percentage to darken (0-100).
+             * @returns {string}
+             */
+            darkenHex(hex, percent) {
+                const num = parseInt(hex.replace("#", ""), 16);
+                const amt = Math.round(2.55 * percent);
+                const R = (num >> 16) - amt;
+                const G = (num >> 8 & 0x00FF) - amt;
+                const B = (num & 0x0000FF) - amt;
+                return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+            },
+            /**
+             * Returns default API settings.
+             * @returns {Object}
+             */
+            getDefaultApiSettings() {
+                return {
+                    apiProvider: 'gemini',
+                    geminiApiKey: '',
+                    geminiModel: 'gemini-1.5-flash',
+                    openRouterKey: '',
+                    openRouterModel: 'google/gemini-flash-1.5',
+                    koboldcpp_url: 'http://localhost:5001',
+                    koboldcpp_template: 'none',
+                    koboldcpp_min_p: 0.1,
+                    koboldcpp_dry: 0.25,
+                    lmstudio_url: 'http://localhost:1234',
+                    userPersonas: [],
+                    savedOpenRouterModels: []
+                };
+            },
+            /**
+             * Returns default UI settings.
+             * @returns {Object}
+             */
+            getDefaultUiSettings() {
+                return {
+                    font: "'Inter', sans-serif", backgroundImageURL: '', bubbleOpacity: 0.85,
+                    chatTextColor: '#e5e7eb', characterImageMode: 'none',
+                    backgroundBlur: 5, textSize: 16, bubbleImageSize: 100,
+                    showPortraitPanel: true,
+                    // ... markdown colors ...
+                    md_h1_color: '#818cf8', md_h2_color: '#a5b4fc', md_h3_color: '#c7d2fe',
+                    md_bold_color: '#ffffff', md_italic_color: '#9ca3af', md_quote_color: '#9ca3af',
+                    md_h1_font: '', md_h2_font: '', md_h3_font: '', md_bold_font: '', md_italic_font: '', md_quote_font: ''
+                };
+            },
+            /**
+             * Returns default story settings.
+             * @returns {Object}
+             */
+            getDefaultStorySettings() {
+                return {
+                    creator_notes: "",
+                    tags: [],
+                    event_master_probability: 15,
+                    enableAnalysis: true
+                };
+            },
+            /**
+             * Returns default system prompts.
+             * @returns {Object}
+             */
+            getDefaultSystemPrompts() {
+                return {
+                    system_prompt: 'You are a master storyteller. Follow instructions precisely.',
+                    event_master_base_prompt: 'You are a secret Event Master. Read the chat. Generate a brief, secret instruction for AI characters to introduce a logical but unexpected event.',
+                    event_master_prompt: 'You are a secret Event Master. Read the chat. Generate a brief, secret instruction for AI characters to introduce a logical but unexpected event.',
+                    prompt_persona_gen: "Embellish this character concept into a rich, detailed, and compelling persona description, focusing on detailed appearance, personality, goals, relationships, and backstory. CONCEPT: \"{concept}\"",
+                    prompt_world_map_gen: "Based on the following story context, generate a genre-appropriate 8x8 grid of interconnected fantasy locations. The central location (4,4) should be a neutral starting point. Attempt to include locations mentioned in the context.\nCONTEXT:\nCHARACTERS:\n{characters}\n\nSTATIC LORE:\n{static}\n\nRECENT EVENTS:\n{recent}\n\nRespond with a valid JSON object: { \"grid\": [ { \"coords\": {\"x\":int, \"y\":int}, \"name\": \"string\", \"description\": \"string (one-line summary)\", \"prompt\": \"string (a rich, detailed paragraph for the AI)\", \"imageUrl\": \"\" } ] }. The grid must contain exactly 64 locations.",
+                    prompt_location_gen: "Generate a rich, detailed, and evocative paragraph-long prompt for a fantasy location named '{name}' which is briefly described as '{description}'. This prompt will be given to an AI storyteller to describe the scene.",
+                    prompt_entry_gen: "Generate a detailed and informative encyclopedia-style entry for a lore topic titled '{title}'. If relevant, use the following triggers as context: '{triggers}'.",
+                    prompt_location_memory_gen: "You are an archivist. Read the following chat transcript that occurred at a specific location. Summarize the key events, character developments, and important facts into a concise, single paragraph. This will serve as a memory for what happened at that location.\n\nTRANSCRIPT:\n{transcript}",
+                    prompt_story_notes_gen: "Based on the following story context (characters, lore), generate a brief, 1-2 sentence creator's note or 'blurb' for this story to show in a library.\n\nCONTEXT:\n{context}",
+                    prompt_story_tags_gen: "Based on the following story context (characters, lore), generate 3-5 relevant, one-word, comma-separated tags for this story (e.g., fantasy, sci-fi, mystery, horror, romance).\n\nCONTEXT:\n{context}"
+                };
+            },
+            /**
+             * Creates a default 8x8 map grid.
+             * @returns {Array<Object>}
+             */
+            createDefaultMapGrid() {
+                const grid = [];
+                for (let y = 0; y < 8; y++) {
+                    for (let x = 0; x < 8; x++) {
+                        grid.push({
+                            coords: { x, y },
+                            name: "",
+                            description: "",
+                            prompt: "",
+                            imageUrl: "",
+                            local_static_entries: []
+                        });
+                    }
+                }
+                return grid;
+            },
+            /**
+             * Finds a path between two coordinates on the grid using A*.
+             * @param {Array<Object>} grid - The map grid.
+             * @param {Object} startCoords - The starting coordinates.
+             * @param {Object} endCoords - The ending coordinates.
+             * @returns {Array<Object>} - The path coordinates.
+             */
+            findPath(grid, startCoords, endCoords) {
+                const toKey = ({ x, y }) => `${x},${y}`;
+                const nodes = grid.map(loc => ({
+                    ...loc,
+                    g: Infinity,
+                    h: Infinity,
+                    f: Infinity,
+                    parent: null,
+                }));
+
+                const startNode = nodes.find(n => n.coords.x === startCoords.x && n.coords.y === startCoords.y);
+                const endNode = nodes.find(n => n.coords.x === endCoords.x && n.coords.y === endCoords.y);
+                if (!startNode || !endNode) return [];
+
+                const heuristic = (a, b) => Math.abs(a.coords.x - b.coords.x) + Math.abs(a.coords.y - b.coords.y);
+
+                let openSet = [startNode];
+                let closedSet = new Set();
+
+                startNode.g = 0;
+                startNode.h = heuristic(startNode, endNode);
+                startNode.f = startNode.h;
+
+                while (openSet.length > 0) {
+                    openSet.sort((a, b) => a.f - b.f);
+                    let currentNode = openSet.shift();
+
+                    if (currentNode === endNode) {
+                        let path = [];
+                        let temp = currentNode;
+                        while (temp) {
+                            path.push(temp.coords);
+                            temp = temp.parent;
+                        }
+                        return path.reverse();
+                    }
+
+                    closedSet.add(toKey(currentNode.coords));
+
+                    const neighbors = nodes.filter(n => {
+                        const dx = Math.abs(n.coords.x - currentNode.coords.x);
+                        const dy = Math.abs(n.coords.y - currentNode.coords.y);
+                        return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
+                    });
+
+                    for (let neighbor of neighbors) {
+                        if (closedSet.has(toKey(neighbor.coords))) continue;
+                        let tentativeG = currentNode.g + 1;
+                        if (tentativeG < neighbor.g) {
+                            neighbor.parent = currentNode;
+                            neighbor.g = tentativeG;
+                            neighbor.h = heuristic(neighbor, endNode);
+                            neighbor.f = neighbor.g + neighbor.h;
+                            if (!openSet.includes(neighbor)) openSet.push(neighbor);
+                        }
+                    }
+                }
+                return [];
+            },
+            /**
+             * Selects an item from a list based on weights.
+             * @param {Array} characters - The items to choose from.
+             * @param {Array<number>} weights - The weights for each item.
+             * @returns {*} - The selected item.
+             */
+            weightedChoice(characters, weights) {
+                if (characters.length !== weights.length || characters.length === 0) return null;
+                const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+                if (totalWeight <= 0) return characters[Math.floor(Math.random() * characters.length)];
+                let random = Math.random() * totalWeight;
+                for (let i = 0; i < characters.length; i++) {
+                    random -= weights[i];
+                    if (random <= 0) return characters[i];
+                }
+                return characters[characters.length - 1];
+            },
+            /**
+             * Checks if there is enough localStorage quota.
+             * @param {number} estimatedSize - The estimated size of data to save.
+             * @returns {boolean} - True if quota is sufficient.
+             */
+            checkLocalStorageQuota(estimatedSize) {
+                try {
+                    const testKey = 'quota-check';
+                    const existingDataSize = JSON.stringify(localStorage).length;
+                    const availableSpace = (5 * 1024 * 1024) - existingDataSize;
+                    if (estimatedSize > availableSpace) return false;
+                    localStorage.setItem(testKey, '1');
+                    localStorage.removeItem(testKey);
+                    return true;
+                } catch (e) { return false; }
+            }
+        };
+
+// === js/services/db-service.js ===
         const DBService = {
             db: null,
             DB_NAME: "EllipsisDB",
@@ -2606,14 +2842,7 @@
             }
         };
 
-        /**
-         * StoryService Module (Data Abstraction Layer)
-         */
-        /**
-         * StoryService Module
-         * Data Abstraction Layer for managing Stories, Narratives, and their persistence.
-         * Handles complex operations like saving state, importing/exporting, and context building.
-         */
+// === js/services/story-service.js ===
         const StoryService = {
             /**
              * Loads the initial application data (stories, active story/narrative).
@@ -3103,14 +3332,7 @@
             },
         };
 
-        /**
-         * StateManager Module
-         */
-        /**
-         * StateManager Module
-         * Centralizes application state management, including the library, global settings, and active narrative.
-         * Handles persistence to localStorage and synchronization with DBService.
-         */
+// === js/services/state-manager.js ===
         const StateManager = {
             data: {
                 library: { active_story_id: null, active_narrative_id: null, stories: [], tag_cache: [] },
@@ -3288,14 +3510,186 @@
             },
         };
 
-        /**
-         * APIService Module
-         */
-        /**
-         * APIService Module
-         * Handles interactions with various AI providers (Gemini, OpenRouter, KoboldCPP, LM Studio).
-         * Manages API keys, request formatting, and error handling.
-         */
+        const ReactiveStore = {
+            state: null,
+            _target: null,
+            _listeners: new Map(),
+            _proxyCache: new WeakMap(),
+            _saveTimeout: null,
+            _isSaving: false,
+            _blockAutoSave: false, // New flag to prevent race conditions on reload
+
+            /**
+             * Initializes the reactive store with the given initial state.
+             * Sets up auto-save triggers on visibility change and page unload.
+             * @param {Object} initialState - The initial state object.
+             */
+            init(initialState) {
+                this._target = initialState;
+                this._listeners.clear();
+                this._proxyCache = new WeakMap();
+                this.state = this._createProxy(initialState);
+
+                const saveNow = () => {
+                    // Check if auto-save is blocked (e.g., during critical DB migrations or reloads)
+                    if (this._blockAutoSave) return;
+
+                    // If we are closing, trigger an immediate save without debounce
+                    this.forceSave();
+                };
+
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'hidden') saveNow();
+                });
+                window.addEventListener('pagehide', saveNow);
+                window.addEventListener('beforeunload', saveNow);
+
+                console.log("ReactiveStore: Initialized with Safety Nets.");
+            },
+
+            // New method to explicitly stop the auto-save mechanism
+            blockAutoSave() {
+                this._blockAutoSave = true;
+                if (this._saveTimeout) {
+                    clearTimeout(this._saveTimeout);
+                    this._saveTimeout = null;
+                }
+            },
+
+            /**
+             * Subscribes a callback to changes in a specific state property.
+             * @param {string} key - The state property key to observe.
+             * @param {Function} callback - The callback function to execute on change.
+             */
+            subscribe(key, callback) {
+                if (!this._listeners.has(key)) {
+                    this._listeners.set(key, new Set());
+                }
+                this._listeners.get(key).add(callback);
+            },
+
+            /**
+             * Creates a recursive proxy for the given target object.
+             * @param {Object} target - The target object to proxy.
+             * @param {string|null} [rootKey=null] - The root key for nested properties.
+             * @returns {Proxy} - The reactive proxy.
+             * @private
+             */
+            _createProxy(target, rootKey = null) {
+                if (typeof target !== 'object' || target === null) return target;
+                if (this._proxyCache.has(target)) return this._proxyCache.get(target);
+
+                const handler = {
+                    get: (obj, prop) => {
+                        const value = obj[prop];
+                        const nextRootKey = rootKey || (typeof prop === 'string' ? prop : null);
+                        if (typeof value === 'object' && value !== null) {
+                            return this._createProxy(value, nextRootKey);
+                        }
+                        return value;
+                    },
+                    set: (obj, prop, value) => {
+                        if (obj[prop] === value) return true;
+                        obj[prop] = value;
+                        const notificationKey = rootKey || prop;
+                        this._notify(notificationKey);
+                        this._scheduleSave();
+                        return true;
+                    },
+                    deleteProperty: (obj, prop) => {
+                        delete obj[prop];
+                        const notificationKey = rootKey || prop;
+                        this._notify(notificationKey);
+                        this._scheduleSave();
+                        return true;
+                    }
+                };
+
+                const proxy = new Proxy(target, handler);
+                this._proxyCache.set(target, proxy);
+                return proxy;
+            },
+
+            /**
+             * Notifies listeners of a change in a state property.
+             * @param {string} key - The key of the changed property.
+             * @private
+             */
+            _notify(key) {
+                if (this._listeners.has(key)) {
+                    this._listeners.get(key).forEach(cb => cb(this.state[key]));
+                }
+            },
+
+            /**
+             * Pauses the auto-save mechanism (e.g., during streaming).
+             */
+            pauseSaving() {
+                this._isSavingPaused = true;
+                if (this._saveTimeout) {
+                    clearTimeout(this._saveTimeout);
+                    this._saveTimeout = null;
+                }
+            },
+
+            /**
+             * Resumes the auto-save mechanism and triggers an immediate save.
+             */
+            resumeSaving() {
+                this._isSavingPaused = false;
+                // Trigger one final save to catch up
+                this.forceSave();
+            },
+
+            /**
+             * Schedules a debounced save operation.
+             * @private
+             */
+            _scheduleSave() {
+                // If paused (streaming), DO NOT schedule a DB write
+                if (this._isSavingPaused) return;
+                if (this._blockAutoSave) return; // Respect block
+
+                if (this._saveTimeout) clearTimeout(this._saveTimeout);
+                this._saveTimeout = setTimeout(() => {
+                    this.forceSave();
+                }, 2000);
+            },
+
+            /**
+             * Forces an immediate save of the current state to the database.
+             * Resets any pending save timers.
+             * @returns {Promise<void>}
+             */
+            async forceSave() {
+                if (this._saveTimeout) {
+                    clearTimeout(this._saveTimeout);
+                    this._saveTimeout = null;
+                }
+
+                if (this._isSaving) return;
+                // Even forceSave should respect the explicit block during critical transitions
+                if (this._blockAutoSave) return;
+
+                this._isSaving = true;
+
+                try {
+                    await StateManager.saveState();
+                    console.log("ReactiveStore: State saved successfully.");
+                } catch (err) {
+                    console.error("ReactiveStore: Save failed", err);
+                } finally {
+                    this._isSaving = false;
+                }
+            },
+
+            // Legacy compatibility
+            persist() {
+                this.forceSave();
+            }
+        };
+
+// === js/services/api-service.js ===
         const APIService = {
             async callAI(prompt, isJson = false, signal = null) {
                 const state = StateManager.getState();
@@ -3621,14 +4015,6 @@
             },
         };
 
-        /**
-         * ModalManager Module
-         */
-        /**
-         * ModalManager Module
-         * Controls the visibility and lifecycle of UI modals.
-         * Handles opening, closing, and cleanup (e.g., clearing intervals).
-         */
         const ModalManager = {
             RUNTIME: { carousel_interval: null },
             /**
@@ -3653,275 +4039,7 @@
             }
         };
 
-
-        /**
-         * UTILITY Module
-         * Provides general-purpose helper functions for the application.
-         * Includes UUID generation, HTML escaping, color manipulation, and default settings.
-         */
-        const UTILITY = {
-            /**
-             * Generates a UUID v4.
-             * @returns {string}
-             */
-            uuid() {
-                return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
-            },
-            /**
-             * Escapes HTML characters to prevent XSS.
-             * @param {string} str - The string to escape.
-             * @returns {string}
-             */
-            escapeHTML(str) {
-                if (typeof str !== 'string') return '';
-                const p = document.createElement("p");
-                p.textContent = str;
-                return p.innerHTML;
-            },
-
-            /**
-             * Safely extracts and parses JSON from a string, handling markdown code blocks.
-             * @param {string} str - The string containing JSON.
-             * @returns {Object|null} - The parsed object or null.
-             */
-            extractAndParseJSON(str) {
-                if (!str) return null;
-                // Remove markdown
-                let clean = str.replace(/```json\s*/g, '').replace(/```/g, '').trim();
-                try {
-                    return JSON.parse(clean);
-                } catch (e) {
-                    // Regex fallback
-                    const match = str.match(/\{[\s\S]*\}/);
-                    if (match) {
-                        try { return JSON.parse(match[0]); } catch (e2) { return null; }
-                    }
-                    return null;
-                }
-            },
-
-            /**
-             * Converts a hex color to RGBA.
-             * @param {string} hex - The hex color string.
-             * @param {number} alpha - The alpha value (0-1).
-             * @returns {string}
-             */
-            hexToRgba(hex, alpha) {
-                let r = 0, g = 0, b = 0;
-                if (hex.length == 4) { r = "0x" + hex[1] + hex[1]; g = "0x" + hex[2] + hex[2]; b = "0x" + hex[3] + hex[3]; }
-                else if (hex.length == 7) { r = "0x" + hex[1] + hex[2]; g = "0x" + hex[3] + hex[4]; b = "0x" + hex[5] + hex[6]; }
-                return `rgba(${+r},${+g},${+b},${alpha})`;
-            },
-            /**
-             * Darkens a hex color by a percentage.
-             * @param {string} hex - The hex color string.
-             * @param {number} percent - The percentage to darken (0-100).
-             * @returns {string}
-             */
-            darkenHex(hex, percent) {
-                const num = parseInt(hex.replace("#", ""), 16);
-                const amt = Math.round(2.55 * percent);
-                const R = (num >> 16) - amt;
-                const G = (num >> 8 & 0x00FF) - amt;
-                const B = (num & 0x0000FF) - amt;
-                return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
-            },
-            /**
-             * Returns default API settings.
-             * @returns {Object}
-             */
-            getDefaultApiSettings() {
-                return {
-                    apiProvider: 'gemini',
-                    geminiApiKey: '',
-                    geminiModel: 'gemini-1.5-flash',
-                    openRouterKey: '',
-                    openRouterModel: 'google/gemini-flash-1.5',
-                    koboldcpp_url: 'http://localhost:5001',
-                    koboldcpp_template: 'none',
-                    koboldcpp_min_p: 0.1,
-                    koboldcpp_dry: 0.25,
-                    lmstudio_url: 'http://localhost:1234',
-                    userPersonas: [],
-                    savedOpenRouterModels: []
-                };
-            },
-            /**
-             * Returns default UI settings.
-             * @returns {Object}
-             */
-            getDefaultUiSettings() {
-                return {
-                    font: "'Inter', sans-serif", backgroundImageURL: '', bubbleOpacity: 0.85,
-                    chatTextColor: '#e5e7eb', characterImageMode: 'none',
-                    backgroundBlur: 5, textSize: 16, bubbleImageSize: 100,
-                    showPortraitPanel: true,
-                    // ... markdown colors ...
-                    md_h1_color: '#818cf8', md_h2_color: '#a5b4fc', md_h3_color: '#c7d2fe',
-                    md_bold_color: '#ffffff', md_italic_color: '#9ca3af', md_quote_color: '#9ca3af',
-                    md_h1_font: '', md_h2_font: '', md_h3_font: '', md_bold_font: '', md_italic_font: '', md_quote_font: ''
-                };
-            },
-            /**
-             * Returns default story settings.
-             * @returns {Object}
-             */
-            getDefaultStorySettings() {
-                return {
-                    creator_notes: "",
-                    tags: [],
-                    event_master_probability: 15,
-                    enableAnalysis: true
-                };
-            },
-            /**
-             * Returns default system prompts.
-             * @returns {Object}
-             */
-            getDefaultSystemPrompts() {
-                return {
-                    system_prompt: 'You are a master storyteller. Follow instructions precisely.',
-                    event_master_base_prompt: 'You are a secret Event Master. Read the chat. Generate a brief, secret instruction for AI characters to introduce a logical but unexpected event.',
-                    event_master_prompt: 'You are a secret Event Master. Read the chat. Generate a brief, secret instruction for AI characters to introduce a logical but unexpected event.',
-                    prompt_persona_gen: "Embellish this character concept into a rich, detailed, and compelling persona description, focusing on detailed appearance, personality, goals, relationships, and backstory. CONCEPT: \"{concept}\"",
-                    prompt_world_map_gen: "Based on the following story context, generate a genre-appropriate 8x8 grid of interconnected fantasy locations. The central location (4,4) should be a neutral starting point. Attempt to include locations mentioned in the context.\nCONTEXT:\nCHARACTERS:\n{characters}\n\nSTATIC LORE:\n{static}\n\nRECENT EVENTS:\n{recent}\n\nRespond with a valid JSON object: { \"grid\": [ { \"coords\": {\"x\":int, \"y\":int}, \"name\": \"string\", \"description\": \"string (one-line summary)\", \"prompt\": \"string (a rich, detailed paragraph for the AI)\", \"imageUrl\": \"\" } ] }. The grid must contain exactly 64 locations.",
-                    prompt_location_gen: "Generate a rich, detailed, and evocative paragraph-long prompt for a fantasy location named '{name}' which is briefly described as '{description}'. This prompt will be given to an AI storyteller to describe the scene.",
-                    prompt_entry_gen: "Generate a detailed and informative encyclopedia-style entry for a lore topic titled '{title}'. If relevant, use the following triggers as context: '{triggers}'.",
-                    prompt_location_memory_gen: "You are an archivist. Read the following chat transcript that occurred at a specific location. Summarize the key events, character developments, and important facts into a concise, single paragraph. This will serve as a memory for what happened at that location.\n\nTRANSCRIPT:\n{transcript}",
-                    prompt_story_notes_gen: "Based on the following story context (characters, lore), generate a brief, 1-2 sentence creator's note or 'blurb' for this story to show in a library.\n\nCONTEXT:\n{context}",
-                    prompt_story_tags_gen: "Based on the following story context (characters, lore), generate 3-5 relevant, one-word, comma-separated tags for this story (e.g., fantasy, sci-fi, mystery, horror, romance).\n\nCONTEXT:\n{context}"
-                };
-            },
-            /**
-             * Creates a default 8x8 map grid.
-             * @returns {Array<Object>}
-             */
-            createDefaultMapGrid() {
-                const grid = [];
-                for (let y = 0; y < 8; y++) {
-                    for (let x = 0; x < 8; x++) {
-                        grid.push({
-                            coords: { x, y },
-                            name: "",
-                            description: "",
-                            prompt: "",
-                            imageUrl: "",
-                            local_static_entries: []
-                        });
-                    }
-                }
-                return grid;
-            },
-            /**
-             * Finds a path between two coordinates on the grid using A*.
-             * @param {Array<Object>} grid - The map grid.
-             * @param {Object} startCoords - The starting coordinates.
-             * @param {Object} endCoords - The ending coordinates.
-             * @returns {Array<Object>} - The path coordinates.
-             */
-            findPath(grid, startCoords, endCoords) {
-                const toKey = ({ x, y }) => `${x},${y}`;
-                const nodes = grid.map(loc => ({
-                    ...loc,
-                    g: Infinity,
-                    h: Infinity,
-                    f: Infinity,
-                    parent: null,
-                }));
-
-                const startNode = nodes.find(n => n.coords.x === startCoords.x && n.coords.y === startCoords.y);
-                const endNode = nodes.find(n => n.coords.x === endCoords.x && n.coords.y === endCoords.y);
-                if (!startNode || !endNode) return [];
-
-                const heuristic = (a, b) => Math.abs(a.coords.x - b.coords.x) + Math.abs(a.coords.y - b.coords.y);
-
-                let openSet = [startNode];
-                let closedSet = new Set();
-
-                startNode.g = 0;
-                startNode.h = heuristic(startNode, endNode);
-                startNode.f = startNode.h;
-
-                while (openSet.length > 0) {
-                    openSet.sort((a, b) => a.f - b.f);
-                    let currentNode = openSet.shift();
-
-                    if (currentNode === endNode) {
-                        let path = [];
-                        let temp = currentNode;
-                        while (temp) {
-                            path.push(temp.coords);
-                            temp = temp.parent;
-                        }
-                        return path.reverse();
-                    }
-
-                    closedSet.add(toKey(currentNode.coords));
-
-                    const neighbors = nodes.filter(n => {
-                        const dx = Math.abs(n.coords.x - currentNode.coords.x);
-                        const dy = Math.abs(n.coords.y - currentNode.coords.y);
-                        return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
-                    });
-
-                    for (let neighbor of neighbors) {
-                        if (closedSet.has(toKey(neighbor.coords))) continue;
-                        let tentativeG = currentNode.g + 1;
-                        if (tentativeG < neighbor.g) {
-                            neighbor.parent = currentNode;
-                            neighbor.g = tentativeG;
-                            neighbor.h = heuristic(neighbor, endNode);
-                            neighbor.f = neighbor.g + neighbor.h;
-                            if (!openSet.includes(neighbor)) openSet.push(neighbor);
-                        }
-                    }
-                }
-                return [];
-            },
-            /**
-             * Selects an item from a list based on weights.
-             * @param {Array} characters - The items to choose from.
-             * @param {Array<number>} weights - The weights for each item.
-             * @returns {*} - The selected item.
-             */
-            weightedChoice(characters, weights) {
-                if (characters.length !== weights.length || characters.length === 0) return null;
-                const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-                if (totalWeight <= 0) return characters[Math.floor(Math.random() * characters.length)];
-                let random = Math.random() * totalWeight;
-                for (let i = 0; i < characters.length; i++) {
-                    random -= weights[i];
-                    if (random <= 0) return characters[i];
-                }
-                return characters[characters.length - 1];
-            },
-            /**
-             * Checks if there is enough localStorage quota.
-             * @param {number} estimatedSize - The estimated size of data to save.
-             * @returns {boolean} - True if quota is sufficient.
-             */
-            checkLocalStorageQuota(estimatedSize) {
-                try {
-                    const testKey = 'quota-check';
-                    const existingDataSize = JSON.stringify(localStorage).length;
-                    const availableSpace = (5 * 1024 * 1024) - existingDataSize;
-                    if (estimatedSize > availableSpace) return false;
-                    localStorage.setItem(testKey, '1');
-                    localStorage.removeItem(testKey);
-                    return true;
-                } catch (e) { return false; }
-            }
-        };
-
-        /**
-             * PromptBuilder Module
-             * Updated with Null-Safety Checks
-             */
-        /**
-         * PromptBuilder Module
-         * Constructs the context and prompts sent to the AI.
-         * Handles template formatting (Llama 3, Gemma, etc.) and context assembly (history, lore, world map).
-         */
+// === js/services/prompt-builder.js ===
         const PromptBuilder = {
             /**
              * Creates a replacement function for template strings.
@@ -4261,14 +4379,7 @@
             }
         };
 
-        /**
-         * ImageProcessor Module
-         */
-        /**
-         * ImageProcessor Module
-         * Handles image manipulation tasks such as resizing, cropping, and format conversion.
-         * Essential for optimizing images before storage or export.
-         */
+// === js/services/image-processor.js ===
         const ImageProcessor = {
             /**
              * Processes an image file, resizing it if necessary, and returns a Blob.
@@ -4344,14 +4455,7 @@
             }
         };
 
-        /**
-         * ImportExportService Module
-         */
-        /**
-         * ImportExportService Module
-         * Manages the import and export of stories, characters, and libraries.
-         * Supports multiple formats including Ellipsis JSON, V2 Cards, and BYAF.
-         */
+// === js/services/import-export-service.js ===
         const ImportExportService = {
             /**
              * Parses an uploaded file based on its extension.
@@ -5188,222 +5292,7 @@
             }
         };
 
-        /**
-             * =================================================================================================
-             * Reactive State Store
-             * Wraps the application state in a Proxy to handle auto-saving and UI updates.
-             * =================================================================================================
-             */
-
-        /**
-         * ReactiveStore Module
-         * Wraps the application state in a Proxy to enable reactive UI updates and auto-saving.
-         * Intercepts property changes to trigger listeners and persistence logic.
-         */
-        const ReactiveStore = {
-            state: null,
-            _target: null,
-            _listeners: new Map(),
-            _proxyCache: new WeakMap(),
-            _saveTimeout: null,
-            _isSaving: false,
-            _blockAutoSave: false, // New flag to prevent race conditions on reload
-
-            /**
-             * Initializes the reactive store with the given initial state.
-             * Sets up auto-save triggers on visibility change and page unload.
-             * @param {Object} initialState - The initial state object.
-             */
-            init(initialState) {
-                this._target = initialState;
-                this._listeners.clear();
-                this._proxyCache = new WeakMap();
-                this.state = this._createProxy(initialState);
-
-                const saveNow = () => {
-                    // Check if auto-save is blocked (e.g., during critical DB migrations or reloads)
-                    if (this._blockAutoSave) return;
-
-                    // If we are closing, trigger an immediate save without debounce
-                    this.forceSave();
-                };
-
-                document.addEventListener('visibilitychange', () => {
-                    if (document.visibilityState === 'hidden') saveNow();
-                });
-                window.addEventListener('pagehide', saveNow);
-                window.addEventListener('beforeunload', saveNow);
-
-                console.log("ReactiveStore: Initialized with Safety Nets.");
-            },
-
-            // New method to explicitly stop the auto-save mechanism
-            blockAutoSave() {
-                this._blockAutoSave = true;
-                if (this._saveTimeout) {
-                    clearTimeout(this._saveTimeout);
-                    this._saveTimeout = null;
-                }
-            },
-
-            /**
-             * Subscribes a callback to changes in a specific state property.
-             * @param {string} key - The state property key to observe.
-             * @param {Function} callback - The callback function to execute on change.
-             */
-            subscribe(key, callback) {
-                if (!this._listeners.has(key)) {
-                    this._listeners.set(key, new Set());
-                }
-                this._listeners.get(key).add(callback);
-            },
-
-            /**
-             * Creates a recursive proxy for the given target object.
-             * @param {Object} target - The target object to proxy.
-             * @param {string|null} [rootKey=null] - The root key for nested properties.
-             * @returns {Proxy} - The reactive proxy.
-             * @private
-             */
-            _createProxy(target, rootKey = null) {
-                if (typeof target !== 'object' || target === null) return target;
-                if (this._proxyCache.has(target)) return this._proxyCache.get(target);
-
-                const handler = {
-                    get: (obj, prop) => {
-                        const value = obj[prop];
-                        const nextRootKey = rootKey || (typeof prop === 'string' ? prop : null);
-                        if (typeof value === 'object' && value !== null) {
-                            return this._createProxy(value, nextRootKey);
-                        }
-                        return value;
-                    },
-                    set: (obj, prop, value) => {
-                        if (obj[prop] === value) return true;
-                        obj[prop] = value;
-                        const notificationKey = rootKey || prop;
-                        this._notify(notificationKey);
-                        this._scheduleSave();
-                        return true;
-                    },
-                    deleteProperty: (obj, prop) => {
-                        delete obj[prop];
-                        const notificationKey = rootKey || prop;
-                        this._notify(notificationKey);
-                        this._scheduleSave();
-                        return true;
-                    }
-                };
-
-                const proxy = new Proxy(target, handler);
-                this._proxyCache.set(target, proxy);
-                return proxy;
-            },
-
-            /**
-             * Notifies listeners of a change in a state property.
-             * @param {string} key - The key of the changed property.
-             * @private
-             */
-            _notify(key) {
-                if (this._listeners.has(key)) {
-                    this._listeners.get(key).forEach(cb => cb(this.state[key]));
-                }
-            },
-
-            /**
-             * Pauses the auto-save mechanism (e.g., during streaming).
-             */
-            pauseSaving() {
-                this._isSavingPaused = true;
-                if (this._saveTimeout) {
-                    clearTimeout(this._saveTimeout);
-                    this._saveTimeout = null;
-                }
-            },
-
-            /**
-             * Resumes the auto-save mechanism and triggers an immediate save.
-             */
-            resumeSaving() {
-                this._isSavingPaused = false;
-                // Trigger one final save to catch up
-                this.forceSave();
-            },
-
-            /**
-             * Schedules a debounced save operation.
-             * @private
-             */
-            _scheduleSave() {
-                // If paused (streaming), DO NOT schedule a DB write
-                if (this._isSavingPaused) return;
-                if (this._blockAutoSave) return; // Respect block
-
-                if (this._saveTimeout) clearTimeout(this._saveTimeout);
-                this._saveTimeout = setTimeout(() => {
-                    this.forceSave();
-                }, 2000);
-            },
-
-            /**
-             * Forces an immediate save of the current state to the database.
-             * Resets any pending save timers.
-             * @returns {Promise<void>}
-             */
-            async forceSave() {
-                if (this._saveTimeout) {
-                    clearTimeout(this._saveTimeout);
-                    this._saveTimeout = null;
-                }
-
-                if (this._isSaving) return;
-                // Even forceSave should respect the explicit block during critical transitions
-                if (this._blockAutoSave) return;
-
-                this._isSaving = true;
-
-                try {
-                    await StateManager.saveState();
-                    console.log("ReactiveStore: State saved successfully.");
-                } catch (err) {
-                    console.error("ReactiveStore: Save failed", err);
-                } finally {
-                    this._isSaving = false;
-                }
-            },
-
-            // Legacy compatibility
-            persist() {
-                this.forceSave();
-            }
-        };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        /**
-     * =================================================================================================
-     * UI Components (Pure Functions)
-     * Reusable, sanitized HTML generators.
-     * =================================================================================================
-     */
-        /**
-         * UIComponents Module
-         * A collection of pure functions that generate sanitized HTML for various UI elements.
-         * Includes components for character tiles, message bubbles, story items, and more.
-         */
+// === js/ui/ui-manager.js ===
         const UIComponents = {
             /**
              * Renders a single character card for the roster.
@@ -5646,16 +5535,6 @@
             }
         };
 
-        /**
-         * =================================================================================================
-         * UIManager Module (Phase 1-5 Complete & Refactored)
-         * =================================================================================================
-         */
-        /**
-         * UIManager Module
-         * Orchestrates the rendering and interaction logic for the entire application.
-         * Manages the chat window, character roster, library interface, and dynamic content.
-         */
         const UIManager = {
             RUNTIME: {
                 streamingInterval: null,
@@ -7709,26 +7588,7 @@
             },
         };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-        /**
-         * AppController
-         * 
-         * Central coordinating controller for high-level application logic.
-         * Handling Modal orchestration, Settings management, and Persona logic.
-         * Acts as the bridge between UI events and the Data/State layers.
-         */
+// === js/controller.js ===
         const AppController = {
             RUNTIME: {
                 activeSettingsTab: 'appearance',
@@ -8714,15 +8574,6 @@
             }
         };
 
-
-
-
-        /**
-         * =================================================================================================
-         * LibraryController Module
-         * Handles Story Creation, Deletion, Import/Export, and Library Management.
-         * =================================================================================================
-         */
         const LibraryController = {
 
             // --- Story Management ---
@@ -10089,15 +9940,6 @@
             }
         };
 
-
-
-
-        /**
-         * =================================================================================================
-         * NarrativeController Module
-         * Handles Chat, Characters, AI Generation, and Interaction Logic.
-         * =================================================================================================
-         */
         const NarrativeController = {
             CONSTANTS: {
                 CHARACTER_COLORS: [
@@ -11347,15 +11189,6 @@
             }
         };
 
-
-
-
-        /**
-         * =================================================================================================
-         * WorldController Module
-         * Handles World Map, Navigation, Static Lore, and Dynamic Lore.
-         * =================================================================================================
-         */
         const WorldController = {
             RUNTIME: {
                 activeWorldMapTab: 'move',
@@ -12147,14 +11980,6 @@
 
         };
 
-
-
-        /**
-         * =================================================================================================
-         * ActionDispatcher Module
-         * The "Glue" that connects UI Events (ActionHandler) to the specific Controllers.
-         * =================================================================================================
-         */
         const ActionDispatcher = {
             /**
              * Initializes the ActionDispatcher.
@@ -12263,15 +12088,7 @@
             }
         };
 
-
-
-
-
-
-        /**
-         * app Module
-         * The Application Initializer.
-         */
+// === js/app.js ===
         const app = {
             /**
              * Initializes the application.
@@ -12619,11 +12436,7 @@
 
 
         };
-
-        // Start the application once the DOM is fully loaded.
-        document.addEventListener('DOMContentLoaded', () => app.init());
-
-    </script>
+</script>
 </body>
 
 </html>

@@ -1,224 +1,355 @@
-/**
- * StateManager Module
- * This module is the single source of truth for all application data.
- * It handles loading from and saving to localStorage, and provides controlled access
- * to the library and the active narrative state. All data mutations should happen
- * through this manager's methods to ensure consistency.
- */
-const StateManager = {
-    // Private data store. Should not be accessed directly from outside this module.
-    data: {
-        library: {
-            active_story_id: null,
-            active_narrative_id: null,
-            stories: [],
-            tag_cache: []
-        },
-        globalSettings: {},
-        // This holds the state of the *currently active* narrative.
-        // It's a combination of story-level settings and narrative-specific data.
-        activeNarrativeState: {},
-    },
+        const StateManager = {
+            data: {
+                library: { active_story_id: null, active_narrative_id: null, stories: [], tag_cache: [] },
+                globalSettings: {},
+                activeNarrativeState: {},
+            },
 
-    CONSTANTS: {
-        GLOBAL_SETTINGS_KEY: 'aiStorytellerGlobalSettings',
-        ACTIVE_STORY_ID_KEY: 'active_story_id',
-        ACTIVE_NARRATIVE_ID_KEY: 'active_narrative_id',
-    },
+            CONSTANTS: {
+                GLOBAL_SETTINGS_KEY: 'aiStorytellerGlobalSettings',
+                ACTIVE_STORY_ID_KEY: 'active_story_id',
+                ACTIVE_NARRATIVE_ID_KEY: 'active_narrative_id',
+            },
 
-    /**
-     * Loads the global app settings (like API keys) from localStorage.
-     */
-    loadGlobalSettings() {
-        let parsedSettings = {};
-        const defaults = UTILITY.getDefaultApiSettings();
-        try {
-            const savedSettingsJSON = localStorage.getItem(this.CONSTANTS.GLOBAL_SETTINGS_KEY);
-            if (savedSettingsJSON) {
-                parsedSettings = JSON.parse(savedSettingsJSON);
-            }
-        } catch (error) {
-            console.error("Failed to parse global settings, using defaults.", error);
-            parsedSettings = {};
-        }
+            /**
+             * Loads global settings from localStorage.
+             */
+            loadGlobalSettings() {
+                let parsedSettings = {};
+                const defaults = UTILITY.getDefaultApiSettings();
+                try {
+                    const savedSettingsJSON = localStorage.getItem(this.CONSTANTS.GLOBAL_SETTINGS_KEY);
+                    if (savedSettingsJSON) parsedSettings = JSON.parse(savedSettingsJSON);
+                } catch (error) { parsedSettings = {}; }
+                this.data.globalSettings = { ...defaults, ...parsedSettings };
+            },
 
-        // Merge defaults to ensure all keys exist
-        this.data.globalSettings = { ...defaults, ...parsedSettings };
-    },
+            /**
+             * Saves global settings to localStorage.
+             */
+            saveGlobalSettings() {
+                localStorage.setItem(this.CONSTANTS.GLOBAL_SETTINGS_KEY, JSON.stringify(this.data.globalSettings));
+            },
 
-    /**
-     * Persists the global app settings to localStorage.
-     */
-    saveGlobalSettings() {
-        localStorage.setItem(this.CONSTANTS.GLOBAL_SETTINGS_KEY, JSON.stringify(this.data.globalSettings));
-    },
+            /**
+             * Returns the active narrative state.
+             * @returns {Object}
+             */
+            getState() { return this.data.activeNarrativeState; },
+            /**
+             * Returns the library data.
+             * @returns {Object}
+             */
+            getLibrary() { return this.data.library; },
 
-    // --- Public Getters ---
-    // Provide read-only access to the state from other parts of the application.
+            /**
+             * Loads the library and hydrates the active narrative state.
+             * @returns {Promise<void>}
+             */
+            async loadLibrary() {
+                this.loadGlobalSettings();
+                try {
+                    const { storyStubs, activeStory, activeNarrative } = await StoryService.loadApplicationData();
+                    this.data.library.stories = storyStubs || [];
+                    this.data.library.active_story_id = activeStory ? activeStory.id : null;
+                    this.data.library.active_narrative_id = activeNarrative ? activeNarrative.id : null;
 
-    /** @returns {object} The active narrative state object. */
-    getState() {
-        return this.data.activeNarrativeState;
-    },
+                    if (activeStory && activeNarrative) {
+                        const idList = activeNarrative.active_character_ids;
+                        const activeIDs = (idList === null || idList === undefined)
+                            ? new Set((activeStory.characters || []).map(c => c.id))
+                            : new Set(idList);
 
-    /** @returns {object} The entire story library object. */
-    getLibrary() {
-        return this.data.library;
-    },
+                        const hydratedCharacters = (activeStory.characters || []).map(char => ({
+                            ...char,
+                            is_active: char.is_user || activeIDs.has(char.id)
+                        }));
+                        this.data.activeNarrativeState = {
+                            ...activeStory,
+                            ...this.data.globalSettings,
+                            ...activeNarrative.state,
+                            characters: hydratedCharacters,
+                            narrativeId: activeNarrative.id,
+                            narrativeName: activeNarrative.name
+                        };
 
-    // --- State Initialization and Persistence ---
+                        if (!this.data.activeNarrativeState.worldMap || !this.data.activeNarrativeState.worldMap.grid || this.data.activeNarrativeState.worldMap.grid.length === 0) {
+                            this.data.activeNarrativeState.worldMap = {
+                                grid: UTILITY.createDefaultMapGrid(),
+                                currentLocation: { x: 4, y: 4 },
+                                destination: { x: null, y: null },
+                                path: []
+                            };
+                        }
+                    } else {
+                        this.data.activeNarrativeState = {};
+                    }
+                } catch (error) {
+                    this.data.library = { stories: [], tag_cache: [] };
+                    this.data.activeNarrativeState = {};
+                }
+                this.updateTagCache();
+            },
 
-    /**
-     * Loads the entire story library from localStorage into the state manager.
-     * Performs data migration for older story formats to ensure compatibility.
-     * This is the first step in the application's data lifecycle.
-     */
-    async loadLibrary() {
-        // 1. Load non-story global settings (e.g., API keys)
-        this.loadGlobalSettings();
+            /**
+             * Persists the current active story and narrative IDs to localStorage.
+             */
+            saveLibrary() {
+                try {
+                    // Persistence: Only save if we have valid IDs, otherwise remove the keys to prevent stale state
+                    if (this.data.library.active_story_id) {
+                        localStorage.setItem(this.CONSTANTS.ACTIVE_STORY_ID_KEY, this.data.library.active_story_id);
+                    } else {
+                        localStorage.removeItem(this.CONSTANTS.ACTIVE_STORY_ID_KEY);
+                    }
 
-        try {
-            // 2. Call the StoryService to get all data
-            const { storyStubs, activeStory, activeNarrative } = await StoryService.loadApplicationData();
+                    if (this.data.library.active_narrative_id) {
+                        localStorage.setItem(this.CONSTANTS.ACTIVE_NARRATIVE_ID_KEY, this.data.library.active_narrative_id);
+                    } else {
+                        localStorage.removeItem(this.CONSTANTS.ACTIVE_NARRATIVE_ID_KEY);
+                    }
+                } catch (e) {
+                    console.warn("LocalStorage save failed:", e);
+                }
+            },
 
-            // 3. Populate the in-memory library with story stubs
-            this.data.library.stories = storyStubs || [];
-            this.data.library.active_story_id = activeStory ? activeStory.id : null;
-            this.data.library.active_narrative_id = activeNarrative ? activeNarrative.id : null;
+            /**
+             * Updates localStorage with the currently active story and narrative IDs.
+             */
+            loadActiveNarrative() {
+                const { active_story_id, active_narrative_id } = this.data.library;
+                if (!active_story_id || !active_narrative_id) {
+                    this.data.activeNarrativeState = {};
+                    return;
+                }
+                localStorage.setItem(this.CONSTANTS.ACTIVE_STORY_ID_KEY, active_story_id);
+                localStorage.setItem(this.CONSTANTS.ACTIVE_NARRATIVE_ID_KEY, active_narrative_id);
+            },
 
-            // 4. Populate the activeNarrativeState if data was returned
-            if (activeStory && activeNarrative) {
-                // hydrate Character Active State
+            /**
+             * Saves the full application state to the database.
+             * @returns {Promise<void>}
+             */
+            async saveState() {
+                // Destructure active_narrative_id to identify the correct stub to update.
+                const { active_story_id, active_narrative_id, stories } = this.data.library;
+                const currentState = this.data.activeNarrativeState;
 
-                // 1. Get the list of active IDs.
-                // If the list is undefined/null (old narrative), we'll use a fallback.
-                const idList = activeNarrative.active_character_ids;
+                if (!active_story_id || !currentState) return;
 
-                // 2. Create the Set of active IDs.
-                // IF idList is null/undefined (old narrative): default to ALL characters in the story being active.
-                // ELSE (new narrative): use the specific list from the narrative.
-                const activeIDs = (idList === null || idList === undefined)
-                    ? new Set((activeStory.characters || []).map(c => c.id)) // MIGRATION FIX: Default to all active
-                    : new Set(idList);                                        // STANDARD: Use saved list
+                try {
+                    const storyInLibrary = stories.find(s => s.id === active_story_id);
+                    const storyStubs = (storyInLibrary || {}).narratives || [];
 
-                // 2. Map over story characters and set is_active flag
-                const hydratedCharacters = (activeStory.characters || []).map(char => ({
-                    ...char,
-                    // It is active IF it's in the narrative's list
-                    // Exception: The User character is ALWAYS active
-                    is_active: char.is_user || activeIDs.has(char.id)
-                }));
+                    // Find the specific narrative stub and update its timestamp.
+                    if (active_narrative_id) {
+                        const currentStub = storyStubs.find(n => n.id === active_narrative_id);
+                        if (currentStub) {
+                            currentStub.last_modified = new Date().toISOString();
+                        }
+                    }
 
-                this.data.activeNarrativeState = {
-                    ...activeStory,                // Story settings
-                    ...this.data.globalSettings,   // Global settings
-                    ...activeNarrative.state,      // Narrative state (chat history, etc)
-                    characters: hydratedCharacters,
-                    narrativeId: activeNarrative.id, // Store the narrative ID
-                    narrativeName: activeNarrative.name
+                    // Now save the story (with the updated narrative list) and the narrative itself
+                    await StoryService.saveActiveState(currentState, storyStubs);
+
+                    if (storyInLibrary) {
+                        storyInLibrary.last_modified = new Date().toISOString();
+                    }
+                } catch (e) { console.error("Failed to save state:", e); }
+            },
+
+            /**
+             * Updates the cache of all unique tags used in the library.
+             */
+            updateTagCache() {
+                const allTags = new Set();
+                this.data.library.stories.forEach(story => {
+                    if (story.tags) story.tags.forEach(tag => allTags.add(tag.toLowerCase()));
+                    if (story.characters) {
+                        story.characters.forEach(char => {
+                            if (char.tags) char.tags.forEach(tag => allTags.add(tag.toLowerCase()));
+                        });
+                    }
+                });
+                this.data.library.tag_cache = Array.from(allTags).sort();
+            },
+        };
+
+        const ReactiveStore = {
+            state: null,
+            _target: null,
+            _listeners: new Map(),
+            _proxyCache: new WeakMap(),
+            _saveTimeout: null,
+            _isSaving: false,
+            _blockAutoSave: false, // New flag to prevent race conditions on reload
+
+            /**
+             * Initializes the reactive store with the given initial state.
+             * Sets up auto-save triggers on visibility change and page unload.
+             * @param {Object} initialState - The initial state object.
+             */
+            init(initialState) {
+                this._target = initialState;
+                this._listeners.clear();
+                this._proxyCache = new WeakMap();
+                this.state = this._createProxy(initialState);
+
+                const saveNow = () => {
+                    // Check if auto-save is blocked (e.g., during critical DB migrations or reloads)
+                    if (this._blockAutoSave) return;
+
+                    // If we are closing, trigger an immediate save without debounce
+                    this.forceSave();
                 };
 
-                // [MIGRATION] Keep your existing migration check
-                // any loaded narrative has a valid world map.
-                if (!this.data.activeNarrativeState.worldMap || !this.data.activeNarrativeState.worldMap.grid || this.data.activeNarrativeState.worldMap.grid.length === 0) {
-                     this.data.activeNarrativeState.worldMap = {
-                        grid: UTILITY.createDefaultMapGrid(),
-                        currentLocation: { x: 4, y: 4 },
-                        destination: { x: null, y: null },
-                        path: []
-                    };
-                }
-            } else {
-                this.data.activeNarrativeState = {};
-            }
-        } catch (error) {
-            console.error("Failed to load application data.", error);
-            this.data.library = { stories: [], tag_cache: [] };
-            this.data.activeNarrativeState = {};
-        }
-
-        // 5. Rebuild tag cache (this logic is fine, just remove save)
-        this.updateTagCache();
-    },
-
-    /**
-     * Persists the *active session IDs* to localStorage.
-     * The full state is saved via saveState().
-     */
-    saveLibrary() {
-        try {
-            // This function now ONLY saves the active session IDs
-            localStorage.setItem(this.CONSTANTS.ACTIVE_STORY_ID_KEY, this.data.library.active_story_id);
-            localStorage.setItem(this.CONSTANTS.ACTIVE_NARRATIVE_ID_KEY, this.data.library.active_narrative_id);
-        } catch (e) {
-            console.error("Failed to save active session IDs to localStorage.", e);
-        }
-    },
-
-    /**
-     * Loads the active narrative. This is now just a helper
-     * to set the active IDs and reload the page.
-     */
-    loadActiveNarrative() {
-        // The *actual* loading happens in loadLibrary() on page init.
-        // This function's job is to set the IDs and trigger that reload.
-        const { active_story_id, active_narrative_id } = this.data.library;
-
-        if (!active_story_id || !active_narrative_id) {
-            this.data.activeNarrativeState = {};
-            return;
-        }
-
-        // This is the only part that's still relevant
-        localStorage.setItem(this.CONSTANTS.ACTIVE_STORY_ID_KEY, active_story_id);
-        localStorage.setItem(this.CONSTANTS.ACTIVE_NARRATIVE_ID_KEY, active_narrative_id);
-    },
-
-    /**
-     * Saves the `activeNarrativeState` back into IndexedDB via the StoryService.
-     */
-    async saveState() {
-        const { active_story_id, active_narrative_id, stories } = this.data.library;
-        const currentState = this.data.activeNarrativeState;
-
-        if (!active_story_id || !active_narrative_id || !currentState) {
-            console.warn("Attempted to save state without an active story/narrative.");
-            return;
-        }
-
-        try {
-            // Find the narrative stubs for the current story
-            const storyStubs = (stories.find(s => s.id === active_story_id) || {}).narratives || [];
-
-            // Pass the full state and the stubs to the service
-            await StoryService.saveActiveState(currentState, storyStubs);
-
-            // Update the in-memory library list's last_modified date
-            const storyInLibrary = this.data.library.stories.find(s => s.id === active_story_id);
-            if (storyInLibrary) {
-                storyInLibrary.last_modified = new Date().toISOString();
-            }
-
-        } catch (e) {
-            console.error("Failed to save state via StoryService:", e);
-        }
-    },
-
-    /**
-     * Scans all stories and characters to build a unique, sorted list of all tags.
-     * Normalizes to lowercase to combine duplicates.
-     */
-    updateTagCache() {
-        const allTags = new Set();
-        this.data.library.stories.forEach(story => {
-            if (story.tags) story.tags.forEach(tag => allTags.add(tag.toLowerCase()));
-            // We can still scan characters, as they are part of the story stub
-            if (story.characters) {
-                story.characters.forEach(char => {
-                    if (char.tags) char.tags.forEach(tag => allTags.add(tag.toLowerCase()));
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'hidden') saveNow();
                 });
+                window.addEventListener('pagehide', saveNow);
+                window.addEventListener('beforeunload', saveNow);
+
+                console.log("ReactiveStore: Initialized with Safety Nets.");
+            },
+
+            // New method to explicitly stop the auto-save mechanism
+            blockAutoSave() {
+                this._blockAutoSave = true;
+                if (this._saveTimeout) {
+                    clearTimeout(this._saveTimeout);
+                    this._saveTimeout = null;
+                }
+            },
+
+            /**
+             * Subscribes a callback to changes in a specific state property.
+             * @param {string} key - The state property key to observe.
+             * @param {Function} callback - The callback function to execute on change.
+             */
+            subscribe(key, callback) {
+                if (!this._listeners.has(key)) {
+                    this._listeners.set(key, new Set());
+                }
+                this._listeners.get(key).add(callback);
+            },
+
+            /**
+             * Creates a recursive proxy for the given target object.
+             * @param {Object} target - The target object to proxy.
+             * @param {string|null} [rootKey=null] - The root key for nested properties.
+             * @returns {Proxy} - The reactive proxy.
+             * @private
+             */
+            _createProxy(target, rootKey = null) {
+                if (typeof target !== 'object' || target === null) return target;
+                if (this._proxyCache.has(target)) return this._proxyCache.get(target);
+
+                const handler = {
+                    get: (obj, prop) => {
+                        const value = obj[prop];
+                        const nextRootKey = rootKey || (typeof prop === 'string' ? prop : null);
+                        if (typeof value === 'object' && value !== null) {
+                            return this._createProxy(value, nextRootKey);
+                        }
+                        return value;
+                    },
+                    set: (obj, prop, value) => {
+                        if (obj[prop] === value) return true;
+                        obj[prop] = value;
+                        const notificationKey = rootKey || prop;
+                        this._notify(notificationKey);
+                        this._scheduleSave();
+                        return true;
+                    },
+                    deleteProperty: (obj, prop) => {
+                        delete obj[prop];
+                        const notificationKey = rootKey || prop;
+                        this._notify(notificationKey);
+                        this._scheduleSave();
+                        return true;
+                    }
+                };
+
+                const proxy = new Proxy(target, handler);
+                this._proxyCache.set(target, proxy);
+                return proxy;
+            },
+
+            /**
+             * Notifies listeners of a change in a state property.
+             * @param {string} key - The key of the changed property.
+             * @private
+             */
+            _notify(key) {
+                if (this._listeners.has(key)) {
+                    this._listeners.get(key).forEach(cb => cb(this.state[key]));
+                }
+            },
+
+            /**
+             * Pauses the auto-save mechanism (e.g., during streaming).
+             */
+            pauseSaving() {
+                this._isSavingPaused = true;
+                if (this._saveTimeout) {
+                    clearTimeout(this._saveTimeout);
+                    this._saveTimeout = null;
+                }
+            },
+
+            /**
+             * Resumes the auto-save mechanism and triggers an immediate save.
+             */
+            resumeSaving() {
+                this._isSavingPaused = false;
+                // Trigger one final save to catch up
+                this.forceSave();
+            },
+
+            /**
+             * Schedules a debounced save operation.
+             * @private
+             */
+            _scheduleSave() {
+                // If paused (streaming), DO NOT schedule a DB write
+                if (this._isSavingPaused) return;
+                if (this._blockAutoSave) return; // Respect block
+
+                if (this._saveTimeout) clearTimeout(this._saveTimeout);
+                this._saveTimeout = setTimeout(() => {
+                    this.forceSave();
+                }, 2000);
+            },
+
+            /**
+             * Forces an immediate save of the current state to the database.
+             * Resets any pending save timers.
+             * @returns {Promise<void>}
+             */
+            async forceSave() {
+                if (this._saveTimeout) {
+                    clearTimeout(this._saveTimeout);
+                    this._saveTimeout = null;
+                }
+
+                if (this._isSaving) return;
+                // Even forceSave should respect the explicit block during critical transitions
+                if (this._blockAutoSave) return;
+
+                this._isSaving = true;
+
+                try {
+                    await StateManager.saveState();
+                    console.log("ReactiveStore: State saved successfully.");
+                } catch (err) {
+                    console.error("ReactiveStore: Save failed", err);
+                } finally {
+                    this._isSaving = false;
+                }
+            },
+
+            // Legacy compatibility
+            persist() {
+                this.forceSave();
             }
-        });
-        this.data.library.tag_cache = Array.from(allTags).sort();
-    },
-};
+        };
