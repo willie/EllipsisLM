@@ -3471,7 +3471,7 @@
                     id: UTILITY.uuid(), name: `${defaultScenario.name} - Chat`, last_modified: new Date().toISOString(),
                     state: {
                         chat_history: [], messageCounter: 0,
-                        static_entries: [{ id: UTILITY.uuid(), title: "World Overview", content: "Define your world here." }],
+                        static_entries: [{ id: UTILITY.uuid(), title: "World Overview", content: "A high-fantasy world." }],
                         worldMap: { grid: UTILITY.createDefaultMapGrid(), currentLocation: { x: 4, y: 4 }, destination: { x: null, y: null }, path: [] }
                     }
                 };
@@ -3580,7 +3580,7 @@
                     state: {
                         chat_history: [],
                         messageCounter: 0,
-                        static_entries: (scenario.static_entries && scenario.static_entries.length > 0) ? JSON.parse(JSON.stringify(scenario.static_entries)) : [{ id: UTILITY.uuid(), title: "World Overview", content: "Define your world here." }],
+                        static_entries: (scenario.static_entries && scenario.static_entries.length > 0) ? JSON.parse(JSON.stringify(scenario.static_entries)) : [{ id: UTILITY.uuid(), title: "World Overview", content: "A high-fantasy world." }],
                         worldMap: scenario.worldMap ? JSON.parse(JSON.stringify(scenario.worldMap)) : { grid: UTILITY.createDefaultMapGrid(), currentLocation: { x: 4, y: 4 }, destination: { x: null, y: null }, path: [] }
                     }
                 };
@@ -3873,7 +3873,7 @@
 
                         // Ensure static_entries is never empty
                         if (!this.data.activeNarrativeState.static_entries || this.data.activeNarrativeState.static_entries.length === 0) {
-                            this.data.activeNarrativeState.static_entries = [{ id: UTILITY.uuid(), title: "World Overview", content: "Define your world here." }];
+                            this.data.activeNarrativeState.static_entries = [{ id: UTILITY.uuid(), title: "World Overview", content: "A high-fantasy world." }];
                         }
                     } else {
                         this.data.activeNarrativeState = {};
