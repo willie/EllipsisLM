@@ -3870,6 +3870,11 @@
                                 path: []
                             };
                         }
+
+                        // Ensure static_entries is never empty
+                        if (!this.data.activeNarrativeState.static_entries || this.data.activeNarrativeState.static_entries.length === 0) {
+                            this.data.activeNarrativeState.static_entries = [{ id: UTILITY.uuid(), title: "World Overview", content: "Define your world here." }];
+                        }
                     } else {
                         this.data.activeNarrativeState = {};
                     }
