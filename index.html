@@ -3965,6 +3965,76 @@
         };
 
         /**
+         * =================================================================================================
+         * ServerProxy Module
+         * Detects if running on the EllipsisLM server and provides proxy endpoints for API calls.
+         * This enables CORS-free API access and optional server-side API key management.
+         * =================================================================================================
+         */
+        const ServerProxy = {
+            enabled: false,
+            config: null,
+
+            /**
+             * Initialize the server proxy by checking if we're running on a server.
+             * Called during app initialization.
+             */
+            async init() {
+                try {
+                    const res = await fetch('/api/health', { method: 'GET' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.status === 'ok') {
+                            this.enabled = true;
+                            // Fetch server config
+                            const configRes = await fetch('/api/config');
+                            if (configRes.ok) {
+                                this.config = await configRes.json();
+                            }
+                            console.log('✅ ServerProxy: Running in server mode', this.config);
+                        }
+                    }
+                } catch (e) {
+                    // Not running on server, that's fine
+                    this.enabled = false;
+                    console.log('ℹ️ ServerProxy: Running in standalone mode (direct API calls)');
+                }
+            },
+
+            /**
+             * Get the appropriate URL for API calls.
+             * Returns proxy URL if server mode is enabled, otherwise returns direct URL.
+             */
+            getUrl(provider, endpoint) {
+                if (!this.enabled) return null;
+
+                const proxyMap = {
+                    'gemini': {
+                        'models': '/api/gemini/models',
+                        'generate': '/api/gemini/generate'
+                    },
+                    'openrouter': {
+                        'models': '/api/openrouter/models',
+                        'chat': '/api/openrouter/chat',
+                        'image': '/api/openrouter/image'
+                    },
+                    'koboldcpp': {
+                        'generate': '/api/kobold/generate',
+                        'check': '/api/kobold/check-generation',
+                        'sdapi-options': '/api/kobold/sdapi/options',
+                        'sdapi-txt2img': '/api/kobold/sdapi/txt2img'
+                    },
+                    'lmstudio': {
+                        'chat': '/api/lmstudio/chat',
+                        'check': '/api/lmstudio/check'
+                    }
+                };
+
+                return proxyMap[provider]?.[endpoint] || null;
+            }
+        };
+
+        /**
          * APIService Module
          */
         /**
@@ -4009,13 +4079,25 @@
                 const stateKey = StateManager.getState().geminiApiKey;
                 const apiKey = globalKey || stateKey;
 
-                if (!apiKey) {
+                // Server proxy might have a default key
+                if (!apiKey && !ServerProxy.config?.hasGeminiKey) {
                     console.warn("getGeminiModels: No API key found.");
                     return [];
                 }
 
                 try {
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                    let res;
+                    const proxyUrl = ServerProxy.getUrl('gemini', 'models');
+                    if (proxyUrl) {
+                        // Use server proxy
+                        res = await fetch(proxyUrl, {
+                            headers: apiKey ? { 'X-API-Key': apiKey } : {}
+                        });
+                    } else {
+                        // Direct API call
+                        res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                    }
+
                     if (!res.ok) {
                         console.error("Gemini List Models Failed:", res.status, res.statusText);
                         return [];
@@ -4044,34 +4126,49 @@
                 const global = StateManager.data.globalSettings;
                 const apiKey = global.geminiApiKey || state.geminiApiKey;
 
-                if (!apiKey) throw new Error("Gemini API key not set.");
+                // Check for API key (allow server-side key if available)
+                if (!apiKey && !ServerProxy.config?.hasGeminiKey) {
+                    throw new Error("Gemini API key not set.");
+                }
 
                 // 1. Resolve Model Name
-                // State might hold "gemini-1.5-flash" OR "models/gemini-1.5-flash".
-                // Global setting might hold the fallback.
                 let rawModel = state.geminiModel || global.geminiModel || 'gemini-1.5-flash';
-
-                // Strip "models/" prefix if present to ensure clean base ID
                 if (rawModel.startsWith('models/')) {
                     rawModel = rawModel.replace('models/', '');
                 }
 
-                // 2. Construct Endpoint
-                // The correct format is: models/{model_id}:generateContent
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${rawModel}:generateContent?key=${apiKey}`;
-
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-                    signal
-                });
+                // 2. Make API call (via proxy or direct)
+                let res;
+                const proxyUrl = ServerProxy.getUrl('gemini', 'generate');
+                if (proxyUrl) {
+                    // Use server proxy
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (apiKey) headers['X-API-Key'] = apiKey;
+                    res = await fetch(proxyUrl, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            model: rawModel,
+                            contents: [{ parts: [{ text: prompt }] }]
+                        }),
+                        signal
+                    });
+                } else {
+                    // Direct API call
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${rawModel}:generateContent?key=${apiKey}`;
+                    res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+                        signal
+                    });
+                }
 
                 if (!res.ok) {
                     let errorMsg = `Status ${res.status}`;
                     try {
                         const errData = await res.json();
-                        errorMsg += `: ${errData.error.message}`;
+                        errorMsg += `: ${errData.error?.message || JSON.stringify(errData)}`;
                     } catch (e) {
                         errorMsg += `: ${await res.text()}`;
                     }
@@ -4093,9 +4190,45 @@
                 const global = StateManager.data.globalSettings;
                 const apiKey = global.openRouterKey || state.openRouterKey;
                 const model = state.openRouterModel || global.openRouterModel;
-                if (!apiKey || !model) throw new Error("OpenRouter API key or model not set.");
-                const res = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` }, body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }] }), signal });
-                if (!res.ok) { let errorDetails = `Status: ${res.status} ${res.statusText}.`; try { const errorJson = await res.json(); errorDetails += ` Message: ${errorJson.error.message || JSON.stringify(errorJson.error)}`; } catch (e) { errorDetails += ` Response body: ${await res.text()}`; } throw new Error(`API Error: ${errorDetails}`); }
+
+                // Check for API key (allow server-side key if available)
+                if (!apiKey && !ServerProxy.config?.hasOpenRouterKey) {
+                    throw new Error("OpenRouter API key not set.");
+                }
+                if (!model) throw new Error("OpenRouter model not set.");
+
+                let res;
+                const proxyUrl = ServerProxy.getUrl('openrouter', 'chat');
+                if (proxyUrl) {
+                    // Use server proxy
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (apiKey) headers['X-API-Key'] = apiKey;
+                    res = await fetch(proxyUrl, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }] }),
+                        signal
+                    });
+                } else {
+                    // Direct API call
+                    res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                        body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }] }),
+                        signal
+                    });
+                }
+
+                if (!res.ok) {
+                    let errorDetails = `Status: ${res.status} ${res.statusText}.`;
+                    try {
+                        const errorJson = await res.json();
+                        errorDetails += ` Message: ${errorJson.error?.message || JSON.stringify(errorJson.error)}`;
+                    } catch (e) {
+                        errorDetails += ` Response body: ${await res.text()}`;
+                    }
+                    throw new Error(`API Error: ${errorDetails}`);
+                }
                 const data = await res.json();
                 return data.choices[0].message.content;
             },
@@ -4107,11 +4240,21 @@
                 const state = StateManager.getState();
                 const global = StateManager.data.globalSettings;
                 const apiKey = global.openRouterKey || state.openRouterKey;
-                const headers = { 'Content-Type': 'application/json' };
-                if (apiKey) {
-                    headers['Authorization'] = `Bearer ${apiKey}`;
+
+                let res;
+                const proxyUrl = ServerProxy.getUrl('openrouter', 'models');
+                if (proxyUrl) {
+                    // Use server proxy
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (apiKey) headers['X-API-Key'] = apiKey;
+                    res = await fetch(proxyUrl, { method: 'GET', headers });
+                } else {
+                    // Direct API call
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+                    res = await fetch('https://openrouter.ai/api/v1/models', { method: 'GET', headers });
                 }
-                const res = await fetch('https://openrouter.ai/api/v1/models', { method: 'GET', headers });
+
                 if (!res.ok) {
                     let errorDetails = `Status: ${res.status} ${res.statusText}.`;
                     try {
@@ -4133,51 +4276,68 @@
              */
             async callKoboldCPP(prompt, signal) {
                 const state = StateManager.getState();
+                const koboldUrl = state.koboldcpp_url || ServerProxy.config?.defaultKoboldUrl || 'http://localhost:5001';
 
                 const payload = {
                     prompt: prompt,
                     use_story: false, use_memory: false, use_authors_note: false, use_world_info: false,
                     max_context_length: 16384,
-                    max_length: 512, // Updated to 512 as per your snippet
+                    max_length: 512,
                     quiet: true,
 
                     // Sampling Settings
                     temperature: 1.0,
                     min_p: state.koboldcpp_min_p,
-                    top_p: 1.0, // Disabled when using Min-P/DRY for pure results, or keep 0.92 if preferred
+                    top_p: 1.0,
                     top_k: 0,
                     tfs: 1,
                     typical: 1,
 
-                    // Disable Legacy Repetition Penalty (Conflict avoidance)
+                    // Disable Legacy Repetition Penalty
                     rep_pen: 1.0,
                     rep_pen_range: 2048,
                     rep_pen_slope: 0.7,
 
-                    // Disable Mirostat to prevent interference with other samplers.
+                    // Disable Mirostat
                     mirostat: 0,
                     mirostat_tau: 4,
                     mirostat_eta: 0.1,
 
-                    // Configure DRY (Don't Repeat Yourself) sampler.
+                    // Configure DRY sampler
                     dry_multiplier: state.koboldcpp_dry,
                     dry_base: 1.75,
                     dry_allowed_length: 2,
-                    dry_penalty_last_n: -1, // Scan entire context
+                    dry_penalty_last_n: -1,
 
                     sampler_order: [6, 0, 1, 2, 3, 4, 5]
                 };
 
-                const res = await fetch(`${state.koboldcpp_url}/api/v1/generate`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                    signal
-                });
+                let res;
+                const proxyUrl = ServerProxy.getUrl('koboldcpp', 'generate');
+                if (proxyUrl) {
+                    // Use server proxy
+                    res = await fetch(proxyUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Kobold-URL': koboldUrl
+                        },
+                        body: JSON.stringify(payload),
+                        signal
+                    });
+                } else {
+                    // Direct API call
+                    res = await fetch(`${koboldUrl}/api/v1/generate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                        signal
+                    });
+                }
 
                 if (!res.ok) {
                     let errorDetails = `Status: ${res.status} ${res.statusText}.`;
-                    try { errorDetails += ` Message: ${(await res.json()).error.message}`; } catch (e) { errorDetails += ` Response body: ${await res.text()}`; }
+                    try { errorDetails += ` Message: ${(await res.json()).error?.message}`; } catch (e) { errorDetails += ` Response body: ${await res.text()}`; }
                     throw new Error(`KoboldCPP API Error: ${errorDetails}`);
                 }
 
@@ -4269,18 +4429,36 @@
              */
             async callLMStudio(prompt, signal) {
                 const state = StateManager.getState();
-                if (!state.lmstudio_url) throw new Error("LM Studio URL not set.");
-                const endpoint = `${state.lmstudio_url}/v1/chat/completions`;
-                const res = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        messages: [{ role: 'user', content: prompt }],
-                        temperature: 0.7,
-                        stream: false
-                    }),
-                    signal
-                });
+                const lmstudioUrl = state.lmstudio_url || ServerProxy.config?.defaultLMStudioUrl || 'http://localhost:1234';
+
+                const requestBody = {
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.7,
+                    stream: false
+                };
+
+                let res;
+                const proxyUrl = ServerProxy.getUrl('lmstudio', 'chat');
+                if (proxyUrl) {
+                    // Use server proxy
+                    res = await fetch(proxyUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-LMStudio-URL': lmstudioUrl
+                        },
+                        body: JSON.stringify(requestBody),
+                        signal
+                    });
+                } else {
+                    // Direct API call
+                    res = await fetch(`${lmstudioUrl}/v1/chat/completions`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody),
+                        signal
+                    });
+                }
 
                 if (!res.ok) {
                     let errorDetails = `Status: ${res.status} ${res.statusText}.`;
@@ -13910,6 +14088,9 @@
                 if ('scrollRestoration' in history) {
                     history.scrollRestoration = 'manual';
                 }
+
+                // 0. Initialize Server Proxy (detect if running on EllipsisLM server)
+                try { await ServerProxy.init(); } catch (e) { console.warn("ServerProxy init failed", e); }
 
                 // 1. Initialize Core Services
                 try { await DBService.init(); } catch (e) { console.warn("DB init failed", e); }

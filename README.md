@@ -33,6 +33,36 @@ The app supports multiple AI backends:
 
 For local backends (Koboldcpp and LM Studio), all processing happens on your computer with complete privacy.
 
+### Server Mode (Node.js)
+
+EllipsisLM can also run as a Node.js server, which provides several benefits:
+- **CORS-free API access** - No need to configure CORS for local backends
+- **Server-side API keys** - Store API keys in environment variables instead of the browser
+- **Multi-user deployment** - Host EllipsisLM for multiple users
+
+**Quick Start:**
+```bash
+# Install dependencies
+npm install
+
+# Start the server
+npm start
+
+# The app will be available at http://localhost:3000
+```
+
+**Configuration (optional):**
+Create a `.env` file based on `.env.example`:
+```bash
+PORT=3000
+GEMINI_API_KEY=your_gemini_key
+OPENROUTER_API_KEY=your_openrouter_key
+KOBOLDCPP_URL=http://localhost:5001
+LMSTUDIO_URL=http://localhost:1234
+```
+
+When running in server mode, the app automatically detects and uses the server's API proxy for all backend calls.
+
 ### Mobile and desktop browser support
 The app is a single HTML file that requires no installation and works on mobile and desktop. To use on mobile, access it through the GitHub site. For desktop use, you can either use the GitHub site or download the HTML file (a download may be required for Koboldcpp support).
 
