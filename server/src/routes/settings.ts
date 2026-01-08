@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
 import { UserService } from '../services/user.service.js';
+import type { AppEnv } from '../types/app.js';
 import type { UpdateSettingsRequest, CreateUserPersonaRequest } from '../types/index.js';
 
-const settings = new Hono();
+const settings = new Hono<AppEnv>();
 
 // Get settings
 settings.get('/', (c) => {
-  const userId = c.get('userId') as string;
+  const userId = c.get('userId');
   const userSettings = UserService.getOrCreateSettings(userId);
 
   // Don't expose raw API keys - mask them
@@ -20,7 +21,7 @@ settings.get('/', (c) => {
 
 // Update settings
 settings.put('/', async (c) => {
-  const userId = c.get('userId') as string;
+  const userId = c.get('userId');
   const data = await c.req.json<UpdateSettingsRequest>();
 
   const userSettings = UserService.updateSettings(userId, data);
@@ -35,7 +36,7 @@ settings.put('/', async (c) => {
 
 // Get raw API keys (separate endpoint for security)
 settings.get('/api-keys', (c) => {
-  const userId = c.get('userId') as string;
+  const userId = c.get('userId');
   const userSettings = UserService.getSettings(userId);
 
   if (!userSettings) {
@@ -52,7 +53,7 @@ settings.get('/api-keys', (c) => {
 
 // Get active story/narrative
 settings.get('/active', (c) => {
-  const userId = c.get('userId') as string;
+  const userId = c.get('userId');
   const userSettings = UserService.getSettings(userId);
 
   return c.json({
@@ -63,7 +64,7 @@ settings.get('/active', (c) => {
 
 // Set active story/narrative
 settings.put('/active', async (c) => {
-  const userId = c.get('userId') as string;
+  const userId = c.get('userId');
   const data = await c.req.json<{ active_story_id?: string; active_narrative_id?: string }>();
 
   UserService.updateSettings(userId, data);
@@ -76,7 +77,7 @@ settings.put('/active', async (c) => {
 
 // User personas routes
 settings.get('/personas', (c) => {
-  const userId = c.get('userId') as string;
+  const userId = c.get('userId');
   const personas = UserService.getPersonas(userId);
 
   return c.json(personas.map(p => ({
@@ -86,7 +87,7 @@ settings.get('/personas', (c) => {
 });
 
 settings.post('/personas', async (c) => {
-  const userId = c.get('userId') as string;
+  const userId = c.get('userId');
   const data = await c.req.json<CreateUserPersonaRequest>();
 
   if (!data.name || !data.description) {

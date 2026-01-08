@@ -1,12 +1,14 @@
 import { Hono } from 'hono';
 import { StoryService } from '../services/story.service.js';
+import { NarrativeService } from '../services/narrative.service.js';
+import type { AppEnv } from '../types/app.js';
 import type { CreateStoryRequest, UpdateStoryRequest, CreateCharacterRequest, CreateScenarioRequest, CreateDynamicEntryRequest } from '../types/index.js';
 
-const stories = new Hono();
+const stories = new Hono<AppEnv>();
 
 // Get all stories
 stories.get('/', (c) => {
-  const userId = c.get('userId') as string;
+  const userId = c.get('userId');
   const query = c.req.query('q');
 
   let storyList;
@@ -45,7 +47,7 @@ stories.get('/:id/full', (c) => {
 
 // Create a new story
 stories.post('/', async (c) => {
-  const userId = c.get('userId') as string;
+  const userId = c.get('userId');
   const data = await c.req.json<CreateStoryRequest>();
 
   if (!data.name) {
@@ -85,7 +87,7 @@ stories.delete('/:id', (c) => {
 // Duplicate a story
 stories.post('/:id/duplicate', (c) => {
   const id = c.req.param('id');
-  const userId = c.get('userId') as string;
+  const userId = c.get('userId');
 
   const story = StoryService.duplicateStory(id, userId);
 
@@ -239,7 +241,6 @@ stories.delete('/:storyId/dynamic-entries/:entryId', (c) => {
 // Narratives list for a story
 stories.get('/:id/narratives', (c) => {
   const storyId = c.req.param('id');
-  const { NarrativeService } = require('../services/narrative.service.js');
   const narratives = NarrativeService.getNarrativesByStoryId(storyId);
   return c.json(narratives);
 });

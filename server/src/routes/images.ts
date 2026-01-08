@@ -12,7 +12,9 @@ images.get('/characters/:charId/image', (c) => {
     return c.json({ error: 'Image not found' }, 404);
   }
 
-  return new Response(image.data, {
+  // Convert Buffer to Uint8Array for Response compatibility
+  const uint8Array = new Uint8Array(image.data);
+  return new Response(uint8Array, {
     headers: {
       'Content-Type': image.mime_type,
       'Cache-Control': 'public, max-age=31536000'
@@ -54,7 +56,9 @@ images.get('/characters/:charId/portraits/:emotion', (c) => {
     return c.json({ error: 'Portrait not found' }, 404);
   }
 
-  return new Response(image.data, {
+  // Convert Buffer to Uint8Array for Response compatibility
+  const uint8Array = new Uint8Array(image.data);
+  return new Response(uint8Array, {
     headers: {
       'Content-Type': image.mime_type,
       'Cache-Control': 'public, max-age=31536000'

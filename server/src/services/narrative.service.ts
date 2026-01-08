@@ -500,7 +500,7 @@ export class NarrativeService {
           local_static_entries: JSON.parse(loc.local_static_entries || '[]')
         })),
         currentLocation: { x: worldMap.current_x, y: worldMap.current_y },
-        destination: worldMap.destination_x != null ? { x: worldMap.destination_x, y: worldMap.destination_y } : undefined,
+        destination: worldMap.destination_x != null ? { x: worldMap.destination_x, y: worldMap.destination_y ?? null } : undefined,
         path: JSON.parse(worldMap.path || '[]')
       };
     }

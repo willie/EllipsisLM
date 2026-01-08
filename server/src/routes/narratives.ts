@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { NarrativeService } from '../services/narrative.service.js';
+import type { AppEnv } from '../types/app.js';
 import type {
   CreateNarrativeRequest,
   CreateMessageRequest,
@@ -10,7 +11,7 @@ import type {
   UpdateWorldLocationRequest
 } from '../types/index.js';
 
-const narratives = new Hono();
+const narratives = new Hono<AppEnv>();
 
 // Get a single narrative
 narratives.get('/:id', (c) => {
@@ -38,7 +39,7 @@ narratives.get('/:id/full', (c) => {
 
 // Create a new narrative
 narratives.post('/', async (c) => {
-  const userId = c.get('userId') as string;
+  const userId = c.get('userId');
   const data = await c.req.json<CreateNarrativeRequest>();
 
   if (!data.name || !data.story_id) {
@@ -78,7 +79,7 @@ narratives.delete('/:id', (c) => {
 // Duplicate a narrative
 narratives.post('/:id/duplicate', (c) => {
   const id = c.req.param('id');
-  const userId = c.get('userId') as string;
+  const userId = c.get('userId');
 
   const narrative = NarrativeService.duplicateNarrative(id, userId);
 
