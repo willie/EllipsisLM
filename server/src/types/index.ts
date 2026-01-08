@@ -51,6 +51,8 @@ export interface Story {
   gemini_model?: string;
   open_router_model?: string;
   koboldcpp_template?: string;
+  koboldcpp_min_p?: number;
+  koboldcpp_dry?: number;
 
   // UI Configuration
   font?: string;
@@ -61,6 +63,7 @@ export interface Story {
   background_blur?: number;
   text_size?: number;
   bubble_image_size?: number;
+  show_portrait_panel?: boolean;
 
   // Markdown Colors
   md_h1_color?: string;
@@ -88,10 +91,12 @@ export interface Story {
   prompt_story_notes_gen?: string;
   prompt_story_tags_gen?: string;
   visual_master_base_prompt?: string;
+  visual_master_probability?: number;
 
   // Story Metadata
   tags: string; // JSON array string
   creator_notes?: string;
+  enable_analysis?: boolean;
 }
 
 export interface Character {

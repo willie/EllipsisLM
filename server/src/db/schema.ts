@@ -58,16 +58,19 @@ CREATE TABLE IF NOT EXISTS stories (
   gemini_model TEXT,
   open_router_model TEXT,
   koboldcpp_template TEXT,
+  koboldcpp_min_p REAL DEFAULT 0.1,
+  koboldcpp_dry REAL DEFAULT 0.25,
 
   -- UI Configuration
   font TEXT,
   background_image_url TEXT,
   bubble_opacity REAL DEFAULT 0.85,
   chat_text_color TEXT,
-  character_image_mode TEXT DEFAULT 'default',
-  background_blur REAL DEFAULT 0,
-  text_size REAL DEFAULT 1,
-  bubble_image_size REAL DEFAULT 60,
+  character_image_mode TEXT DEFAULT 'none',
+  background_blur REAL DEFAULT 5,
+  text_size REAL DEFAULT 16,
+  bubble_image_size REAL DEFAULT 100,
+  show_portrait_panel INTEGER DEFAULT 1,
 
   -- Markdown Colors
   md_h1_color TEXT,
@@ -86,7 +89,7 @@ CREATE TABLE IF NOT EXISTS stories (
   -- System Prompts
   system_prompt TEXT,
   event_master_base_prompt TEXT,
-  event_master_probability REAL DEFAULT 0,
+  event_master_probability REAL DEFAULT 15,
   prompt_persona_gen TEXT,
   prompt_world_map_gen TEXT,
   prompt_location_gen TEXT,
@@ -95,10 +98,12 @@ CREATE TABLE IF NOT EXISTS stories (
   prompt_story_notes_gen TEXT,
   prompt_story_tags_gen TEXT,
   visual_master_base_prompt TEXT,
+  visual_master_probability REAL DEFAULT 0,
 
   -- Story Metadata
   tags TEXT DEFAULT '[]',
   creator_notes TEXT,
+  enable_analysis INTEGER DEFAULT 1,
 
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -210,8 +215,8 @@ CREATE TABLE IF NOT EXISTS narrative_dynamic_entries (
 CREATE TABLE IF NOT EXISTS world_maps (
   id TEXT PRIMARY KEY,
   narrative_id TEXT NOT NULL UNIQUE,
-  current_x INTEGER NOT NULL DEFAULT 3,
-  current_y INTEGER NOT NULL DEFAULT 3,
+  current_x INTEGER NOT NULL DEFAULT 4,
+  current_y INTEGER NOT NULL DEFAULT 4,
   destination_x INTEGER,
   destination_y INTEGER,
   path TEXT DEFAULT '[]',

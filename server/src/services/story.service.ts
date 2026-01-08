@@ -61,14 +61,15 @@ export class StoryService {
     // Build dynamic update query
     const fields: (keyof UpdateStoryRequest)[] = [
       'name', 'api_provider', 'gemini_model', 'open_router_model', 'koboldcpp_template',
+      'koboldcpp_min_p', 'koboldcpp_dry',
       'font', 'background_image_url', 'bubble_opacity', 'chat_text_color', 'character_image_mode',
-      'background_blur', 'text_size', 'bubble_image_size',
+      'background_blur', 'text_size', 'bubble_image_size', 'show_portrait_panel',
       'md_h1_color', 'md_h2_color', 'md_h3_color', 'md_bold_color', 'md_italic_color', 'md_quote_color',
       'md_h1_font', 'md_h2_font', 'md_h3_font', 'md_bold_font', 'md_italic_font', 'md_quote_font',
       'system_prompt', 'event_master_base_prompt', 'event_master_probability',
       'prompt_persona_gen', 'prompt_world_map_gen', 'prompt_location_gen', 'prompt_entry_gen',
       'prompt_location_memory_gen', 'prompt_story_notes_gen', 'prompt_story_tags_gen',
-      'visual_master_base_prompt', 'creator_notes'
+      'visual_master_base_prompt', 'visual_master_probability', 'creator_notes', 'enable_analysis'
     ];
 
     for (const field of fields) {

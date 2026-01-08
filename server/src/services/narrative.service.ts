@@ -364,7 +364,7 @@ export class NarrativeService {
     db.prepare(`
       INSERT INTO world_maps (id, narrative_id, current_x, current_y, path, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(id, narrativeId, 3, 3, '[]', now, now);
+    `).run(id, narrativeId, 4, 4, '[]', now, now);
 
     // Create 64 empty locations (8x8 grid)
     const insertLoc = db.prepare(`
@@ -485,7 +485,7 @@ export class NarrativeService {
 
     let worldMapExport: FullNarrativeExport['state']['worldMap'] = {
       grid: [],
-      currentLocation: { x: 3, y: 3 }
+      currentLocation: { x: 4, y: 4 }
     };
 
     if (worldMap) {
