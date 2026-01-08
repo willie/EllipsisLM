@@ -1,0 +1,25 @@
+{
+  "name": "ellipsislm-server",
+  "version": "1.0.0",
+  "description": "Server-based backend for EllipsisLM AI Roleplay application",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "db:migrate": "tsx src/db/migrate.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "better-sqlite3": "^11.6.0",
+    "hono": "^4.6.14",
+    "uuid": "^11.0.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.2",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
