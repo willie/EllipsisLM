@@ -158,6 +158,8 @@
             right: 0;
             z-index: 60;
             padding: 0.5rem;
+            padding-left: calc(0.5rem + env(safe-area-inset-left));
+            padding-right: calc(0.5rem + env(safe-area-inset-right));
             pointer-events: none;
         }
 
@@ -176,6 +178,8 @@
             margin: 0 !important;
             border-radius: 0;
             width: 100%;
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
 
         body.layout-vertical #character-portrait-container {
@@ -186,6 +190,8 @@
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             padding: 1rem;
             padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+            padding-left: calc(1rem + env(safe-area-inset-left));
+            padding-right: calc(1rem + env(safe-area-inset-right));
             background: rgba(17, 24, 39, 0.5);
             -webkit-backdrop-filter: blur(10px);
             backdrop-filter: blur(10px);
@@ -249,6 +255,8 @@
             background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
             padding-top: calc(0.5rem + env(safe-area-inset-top));
             padding-bottom: 1rem;
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
             text-align: center;
             opacity: 0;
             transition: opacity 0.3s ease;
@@ -257,6 +265,51 @@
             border-bottom: none;
             color: var(--chat-text-color);
             font-family: var(--chat-font-family);
+        }
+
+        /* ==========================================================================
+           iOS PWA SAFE AREA FIXES
+           Ensures modals and fixed elements respect iPhone notch and home indicator
+           ========================================================================== */
+
+        /* Modal containers need safe area padding for iOS PWA */
+        #story-library-modal,
+        #gen-story-modal,
+        #io-hub-modal,
+        #report-modal,
+        #story-details-modal,
+        #characters-modal,
+        #character-detail-modal,
+        #knowledge-modal,
+        #world-map-modal,
+        #location-details-modal,
+        #settings-modal,
+        #edit-response-modal,
+        #view-raw-prompt-modal,
+        #example-dialogue-modal,
+        #confirmation-modal,
+        #openrouter-model-modal,
+        #lightbox-modal {
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+
+        /* Ensure modal content doesn't exceed safe viewport */
+        #story-library-modal > div:not(.modal-overlay),
+        #gen-story-modal > div:not(.modal-overlay),
+        #io-hub-modal > div:not(.modal-overlay),
+        #settings-modal > div:not(.modal-overlay),
+        #characters-modal > div:not(.modal-overlay),
+        #character-detail-modal > div:not(.modal-overlay),
+        #knowledge-modal > div:not(.modal-overlay),
+        #world-map-modal > div:not(.modal-overlay),
+        #location-details-modal > div:not(.modal-overlay),
+        #story-details-modal > div:not(.modal-overlay),
+        #edit-response-modal > div:not(.modal-overlay),
+        #view-raw-prompt-modal > div:not(.modal-overlay) {
+            max-height: calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom));
         }
 
         #mobile-story-title-overlay:focus,
@@ -608,6 +661,8 @@
             position: relative;
             z-index: 20;
             padding-bottom: max(1rem, env(safe-area-inset-bottom));
+            padding-left: calc(1rem + env(safe-area-inset-left));
+            padding-right: calc(1rem + env(safe-area-inset-right));
         }
 
         /* Visual settings sliders */
