@@ -1842,6 +1842,7 @@
                             class="w-full appearance-none rounded-lg p-3 bg-gray-800 border border-gray-600 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors">
                             <option value="short">Short (1-2 Sentences)</option>
                             <option value="medium">Medium (2-4 Sentences)</option>
+                            <option value="moderate">Moderate (4-6 Sentences)</option>
                             <option value="normal">Default (Unconstrained)</option>
                             <option value="long">Long (Detailed)</option>
                             <option value="novel">Novel (Creative Writing)</option>
@@ -5043,6 +5044,7 @@
                 if (!components.charToAct.is_narrator) {
                     if (responseLength === 'short') p += " Keep the response concise and under two sentences.";
                     else if (responseLength === 'medium') p += " Keep the response between two to four sentences.";
+                    else if (responseLength === 'moderate') p += " Write a moderately detailed response of around four to six sentences.";
                     else if (responseLength === 'long') p += " Be descriptive, verbose, and detailed in your response.";
                     else if (responseLength === 'novel') p += " Continue writing a long-form addition to the text that builds on the current actions, describes the scene, and contributes to world-building.";
                 }
@@ -5079,6 +5081,7 @@
                 if (!components.charToAct.is_narrator) {
                     if (responseLength === 'short') instruction += " Your response should be concise and under two sentences.";
                     else if (responseLength === 'medium') instruction += " Keep the response between two to four sentences.";
+                    else if (responseLength === 'moderate') instruction += " Write a moderately detailed response of around four to six sentences.";
                     else if (responseLength === 'long') instruction += " Be descriptive, verbose, and detailed in your response.";
                     else if (responseLength === 'novel') instruction += " Continue writing a long-form addition to the text that builds on the current actions, describes the scene, and contributes to world-building.";
                 }
