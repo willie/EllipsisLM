@@ -1845,6 +1845,7 @@
                             <option value="moderate">Moderate (4-6 Sentences)</option>
                             <option value="normal">Default (Unconstrained)</option>
                             <option value="long">Long (Detailed)</option>
+                            <option value="twopara">Two Paragraphs</option>
                             <option value="novel">Novel (Creative Writing)</option>
                         </select>
                         <div
@@ -5046,6 +5047,7 @@
                     else if (responseLength === 'medium') p += " Keep the response between two to four sentences.";
                     else if (responseLength === 'moderate') p += " Write a moderately detailed response of around four to six sentences.";
                     else if (responseLength === 'long') p += " Be descriptive, verbose, and detailed in your response.";
+                    else if (responseLength === 'twopara') p += " Write your response as two well-developed paragraphs.";
                     else if (responseLength === 'novel') p += " Continue writing a long-form addition to the text that builds on the current actions, describes the scene, and contributes to world-building.";
                 }
 
@@ -5083,6 +5085,7 @@
                     else if (responseLength === 'medium') instruction += " Keep the response between two to four sentences.";
                     else if (responseLength === 'moderate') instruction += " Write a moderately detailed response of around four to six sentences.";
                     else if (responseLength === 'long') instruction += " Be descriptive, verbose, and detailed in your response.";
+                    else if (responseLength === 'twopara') instruction += " Write your response as two well-developed paragraphs.";
                     else if (responseLength === 'novel') instruction += " Continue writing a long-form addition to the text that builds on the current actions, describes the scene, and contributes to world-building.";
                 }
                 if (template === 'none') return this.buildDefaultPrompt(components, replacer);
