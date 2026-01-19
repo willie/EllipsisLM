@@ -1942,6 +1942,18 @@
                 </div>
             </div>
 
+            <!-- Default Model Instructions -->
+            <div class="bg-gray-900/30 p-4 rounded-lg border border-gray-700/50 mt-4">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Default Model Instructions</label>
+                <p class="text-gray-400 text-xs mb-2">Applied to new characters. Keep it short.</p>
+                <textarea id="default-model-instructions-input"
+                    class="w-full bg-black/20 border border-gray-600 rounded-lg p-3 text-sm text-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-y font-mono"
+                    rows="2"></textarea>
+                <div class="text-right mt-2">
+                    <button onclick="AppController.resetDefaultModelInstructions()" class="text-xs text-gray-400 hover:text-white">Reset to default</button>
+                </div>
+            </div>
+
             <div class="space-y-3 pt-4">
                 <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider px-1">Masters & Logic</h3>
 
@@ -3844,7 +3856,7 @@
                     id: UTILITY.uuid(), name: "My First Story", last_modified: new Date().toISOString(), created_date: new Date().toISOString(),
                     ...UTILITY.getDefaultApiSettings(), ...UTILITY.getDefaultUiSettings(), ...UTILITY.getDefaultSystemPrompts(), ...UTILITY.getDefaultStorySettings(),
                     characters: [
-                        { id: UTILITY.uuid(), name: "You", description: "The protagonist.", short_description: "The main character.", model_instructions: "Write a response for {character} in a creative and descriptive style.", is_user: true, is_active: true, image_url: '', extra_portraits: [], tags: [], is_narrator: false },
+                        { id: UTILITY.uuid(), name: "You", description: "The protagonist.", short_description: "The main character.", model_instructions: UTILITY.getDefaultSystemPrompts().default_model_instructions, is_user: true, is_active: true, image_url: '', extra_portraits: [], tags: [], is_narrator: false },
                         { id: UTILITY.uuid(), name: "Narrator", description: "Describes the world.", short_description: "The storyteller.", model_instructions: "Act as a world-class storyteller.", is_user: false, is_active: true, image_url: '', extra_portraits: [], tags: [], color: { base: '#334155', bold: '#94a3b8' }, is_narrator: true }
                     ],
                     dynamic_entries: [{ id: UTILITY.uuid(), title: "Example Lorebook Entry", triggers: "example, .01%", content_fields: ["This is a sample dynamic lore entry."], current_index: 0, triggered_at_turn: null }],
@@ -3886,7 +3898,7 @@
                     ...UTILITY.getDefaultApiSettings(), ...UTILITY.getDefaultUiSettings(), ...UTILITY.getDefaultSystemPrompts(), ...UTILITY.getDefaultStorySettings(),
                     search_index: "new story",
                     characters: [
-                        { id: UTILITY.uuid(), name: "You", description: "The protagonist.", short_description: "The main character.", model_instructions: "Write a response for {character} in a creative and descriptive style.", is_user: true, is_active: true, image_url: '', extra_portraits: [], tags: [], is_narrator: false },
+                        { id: UTILITY.uuid(), name: "You", description: "The protagonist.", short_description: "The main character.", model_instructions: UTILITY.getDefaultSystemPrompts().default_model_instructions, is_user: true, is_active: true, image_url: '', extra_portraits: [], tags: [], is_narrator: false },
                         { id: UTILITY.uuid(), name: "Narrator", description: "Describes the world.", short_description: "The storyteller.", model_instructions: "Act as a world-class storyteller.", is_user: false, is_active: true, image_url: '', extra_portraits: [], tags: [], color: { base: '#334155', bold: '#94a3b8' }, is_narrator: true }
                     ],
                     dynamic_entries: [{ id: UTILITY.uuid(), title: "Example Lorebook Entry", triggers: "example, 100%", content_fields: ["This is a sample dynamic lore entry."], current_index: 0, triggered_at_turn: null }],
@@ -4861,6 +4873,7 @@
             getDefaultSystemPrompts() {
                 return {
                     system_prompt: 'You are a master storyteller. Follow instructions precisely.',
+                    default_model_instructions: 'Write a response for {character} in a creative and descriptive style.',
                     event_master_base_prompt: 'You are a secret Event Master. Read the chat. Generate a brief, secret instruction for AI characters to introduce a logical but unexpected event.',
                     event_master_prompt: 'You are a secret Event Master. Read the chat. Generate a brief, secret instruction for AI characters to introduce a logical but unexpected event.',
                     prompt_persona_gen: "Embellish this character concept into a rich, detailed, and compelling persona description, focusing on detailed appearance, personality, goals, relationships, and backstory.\n\nNAME: \"{name}\"\nCONCEPT: \"{concept}\"",
@@ -9978,6 +9991,18 @@
 
                 // --- Bindings: Prompt Tab ---
                 if (document.getElementById('system-prompt-input')) setListener('system-prompt-input', 'system_prompt');
+
+                // Default Model Instructions
+                if (document.getElementById('default-model-instructions-input')) {
+                    setListener('default-model-instructions-input', 'default_model_instructions');
+                    const input = document.getElementById('default-model-instructions-input');
+                    if (!input.value) {
+                        const def = UTILITY.getDefaultSystemPrompts().default_model_instructions;
+                        input.value = def;
+                        if (!state.default_model_instructions) state.default_model_instructions = def;
+                    }
+                }
+
                 if (document.getElementById('event-master-prob-input')) {
                     setListener('event-master-prob-input', 'event_master_probability');
                     // Ensure default display if missing
@@ -10178,6 +10203,16 @@
 
                 // Re-bind to show/hide correct sections
                 this.bindSettingsListeners();
+            },
+
+            /**
+             * Resets the default model instructions to the hardcoded default.
+             */
+            resetDefaultModelInstructions() {
+                const def = UTILITY.getDefaultSystemPrompts().default_model_instructions;
+                ReactiveStore.state.default_model_instructions = def;
+                const input = document.getElementById('default-model-instructions-input');
+                if (input) input.value = def;
             },
 
             /**
@@ -11622,6 +11657,7 @@
                     } catch (e) { console.warn("Relationship gen failed, skipping."); }
 
                     // STEP 4: CHARACTERS (Sequential with Relationship Injection & Image Generation)
+                    const defaultInstructions = StateManager.getState()?.default_model_instructions || UTILITY.getDefaultSystemPrompts().default_model_instructions;
                     for (let i = 0; i < roster.length; i++) {
                         const charDef = roster[i];
                         updateUI(35 + (i * 10), `Breathing life into ${charDef.name}...`);
@@ -11659,7 +11695,7 @@
                                 name: charDef.name,
                                 description: charData.description || "No description.",
                                 short_description: charData.short_description || "A character.",
-                                model_instructions: charData.model_instructions || `Act as ${charDef.name}.`,
+                                model_instructions: charData.model_instructions ? `${charData.model_instructions} ${defaultInstructions}` : defaultInstructions,
                                 tags: charData.tags || [],
                                 is_user: charDef.role === 'User',
                                 is_active: true,
@@ -11673,7 +11709,7 @@
 
                     // Fallback: Ensure a user exists if AI didn't generate one
                     if (!draft.characters.some(c => c.is_user)) {
-                        draft.characters.push({ id: UTILITY.uuid(), name: "Traveler", description: "You.", short_description: "You.", is_user: true, is_active: true, color: { base: '#4b5563', bold: '#fff' }, image_url: '', extra_portraits: [], tags: [], model_instructions: "Act as User." });
+                        draft.characters.push({ id: UTILITY.uuid(), name: "Traveler", description: "You.", short_description: "You.", is_user: true, is_active: true, color: { base: '#4b5563', bold: '#fff' }, image_url: '', extra_portraits: [], tags: [], model_instructions: defaultInstructions });
                     }
 
                     // STEP 5: SCENARIO (Logic Fix: Determine Speaker First)
@@ -12670,7 +12706,7 @@
 
                 // Construct final prompt with Mandatory JSON Schema
                 const prompt = `${instruction}
-                
+
                 INSTRUCTIONS:
                 Infer their personality, appearance, and role.
                 Respond with VALID JSON ONLY:
@@ -13731,10 +13767,11 @@ Rules:
             addCharacter() {
                 const aiCount = ReactiveStore.state.characters.filter(c => !c.is_user).length;
                 const color = this.CONSTANTS.CHARACTER_COLORS[aiCount % this.CONSTANTS.CHARACTER_COLORS.length];
+                const defaultInstructions = ReactiveStore.state.default_model_instructions || UTILITY.getDefaultSystemPrompts().default_model_instructions;
 
                 const newChar = {
                     id: UTILITY.uuid(), name: "New Character", description: "", short_description: "Summary",
-                    model_instructions: "Act as {character}.", image_url: "", extra_portraits: [],
+                    model_instructions: defaultInstructions, image_url: "", extra_portraits: [],
                     tags: [], is_user: false, is_active: true, color: color, is_narrator: false
                 };
 
@@ -13797,12 +13834,13 @@ Rules:
                         ? { base: data.color_hex, bold: '#ffffff' }
                         : this.CONSTANTS.CHARACTER_COLORS[aiCount % this.CONSTANTS.CHARACTER_COLORS.length];
 
+                    const defaultInstructions = state.default_model_instructions || UTILITY.getDefaultSystemPrompts().default_model_instructions;
                     const newChar = {
                         id: UTILITY.uuid(),
                         name: name.trim(),
                         description: data.description || "A mysterious character.",
                         short_description: data.short_description || "A new character.",
-                        model_instructions: data.model_instructions || `Act as ${name}.`,
+                        model_instructions: data.model_instructions ? `${data.model_instructions} ${defaultInstructions}` : defaultInstructions,
                         image_url: "",
                         extra_portraits: [],
                         tags: data.tags || [],
