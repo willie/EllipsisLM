@@ -4863,9 +4863,9 @@
                     system_prompt: 'You are a master storyteller. Follow instructions precisely.',
                     event_master_base_prompt: 'You are a secret Event Master. Read the chat. Generate a brief, secret instruction for AI characters to introduce a logical but unexpected event.',
                     event_master_prompt: 'You are a secret Event Master. Read the chat. Generate a brief, secret instruction for AI characters to introduce a logical but unexpected event.',
-                    prompt_persona_gen: "Embellish this character concept into a rich, detailed, and compelling persona description, focusing on detailed appearance, personality, goals, relationships, and backstory.\n\nNAME: \"{name}\"\nCONCEPT: \"{concept}\"",
+                    prompt_persona_gen: "Flesh out this character concept into a grounded, believable persona. Include appearance, personality, goals, and background. Keep it natural.\n\nNAME: \"{name}\"\nCONCEPT: \"{concept}\"",
                     prompt_world_map_gen: "Based on the following story context, generate a genre-appropriate 8x8 grid of interconnected fantasy locations. The central location (4,4) should be a neutral starting point. Attempt to include locations mentioned in the context.\nCONTEXT:\nCHARACTERS:\n{characters}\n\nSTATIC LORE:\n{static}\n\nRECENT EVENTS:\n{recent}\n\nRespond with a valid JSON object: { \"grid\": [ { \"coords\": {\"x\":int, \"y\":int}, \"name\": \"string\", \"description\": \"string (one-line summary)\", \"prompt\": \"string (a rich, detailed paragraph for the AI)\", \"imageUrl\": \"\" } ] }. The grid must contain exactly 64 locations.",
-                    prompt_location_gen: "Generate a rich, detailed, and evocative paragraph-long prompt for a fantasy location named '{name}' which is briefly described as '{description}'. This prompt will be given to an AI storyteller to describe the scene.",
+                    prompt_location_gen: "Generate a clear, grounded description for a location named '{name}' which is briefly described as '{description}'. Focus on practical details the AI needs to describe the scene.",
                     prompt_entry_gen: "Generate a detailed and informative encyclopedia-style entry for a lore topic titled '{title}'. If relevant, use the following triggers as context: '{triggers}'.",
                     prompt_location_memory_gen: "You are an archivist. Read the following chat transcript that occurred at a specific location. Summarize the key events, character developments, and important facts into a concise, single paragraph. This will serve as a memory for what happened at that location.\n\nTRANSCRIPT:\n{transcript}",
                     prompt_story_notes_gen: "Based on the following story context (characters, lore), generate a brief, 1-2 sentence creator's note or 'blurb' for this story to show in a library.\n\nCONTEXT:\n{context}",
@@ -11497,25 +11497,25 @@
                     // STEP 1: CONCEPT
                     updateUI(10, "Architecting the universe...");
 
-                    // REFINED PROMPT: Demanding atmosphere and depth
-                    const conceptPrompt = `You are a creative director for a high-quality interactive novel. Based on this prompt: "${userPrompt}", create a detailed story bible. Be imaginitive and unexpected yet logical to craft a world and scenario where participants will desire to explore and become immersed.
-                    
-                    Notes on output elements:
-                    - Story should be as authentic as possible to the initiating prompt. Avoid adding magical elements to a realistic idea, or horror elements to a romantic comedy, for instance. Think about how each character may expand the narrative in compelling ways.
-                    - The brief_summary should further define the genre, style, and atmosphere of the story. Then, build out the environment and setting, describe any relevant 'factions' or political alliances, and describe the inciting incident that will serve as the scenario.
-                    - Create as many characters as makes sense for the narrative, with a minimum of 3. The first shall be the 'user'.
+                    // REFINED PROMPT: Grounded, no drama
+                    const conceptPrompt = `You are a creative director for an interactive novel. Based on this prompt: "${userPrompt}", create a story bible. Create a grounded, believable world. Keep it natural and authentic to the prompt.
+
+                    Notes:
+                    - Be authentic to the prompt. Don't add magical elements to realistic ideas, or horror to comedy.
+                    - The brief_summary defines genre, setting, and starting situation. No drama or high stakes needed.
+                    - Create 3+ characters. First is the 'user'.
 
                     Respond with VALID JSON ONLY:
                     {
-                        "title": "A Compelling Story Title",
-                        "creator_notes": "An atmospheric, engaging introduction to the story's environment and tone (approx 2 paragraphs). Sell the concept.",
-                        "tags": ["tag1", "tag2", "genre", "vibe"],
-                        "scenario_name": "A creative name for the starting scene. This sets the tone for how the participants will interact in this world",
-                        "brief_summary": "A rich summary of the world, the core conflict, and the stakes involved. Focus on the drama.",
+                        "title": "Story Title",
+                        "creator_notes": "Introduction to the setting and tone (2 paragraphs).",
+                        "tags": ["tag1", "tag2", "genre"],
+                        "scenario_name": "Starting scene name",
+                        "brief_summary": "Summary of world, setting, and situation.",
                         "characters": [
-                            {"name": "Name", "role": "User", "archetype": "The Protagonist (Describe their situation, not just 'You')"},
-                            {"name": "Name", "role": "PrimaryAI", "archetype": "The Companion/Antagonist/Narrator (The main NPC interaction)"},
-                            {"name": "Name", "role": "Secondary", "archetype": "Support/World Builder"} 
+                            {"name": "Name", "role": "User", "archetype": "Protagonist description"},
+                            {"name": "Name", "role": "PrimaryAI", "archetype": "Main NPC description"},
+                            {"name": "Name", "role": "Secondary", "archetype": "Supporting character"}
                         ]
                     }`;
 
@@ -11591,13 +11591,11 @@
                     // STEP 2: LORE
                     updateUI(20, "Forging history and lore...");
 
-                    // REFINED PROMPT: Focus on worldbuilding flavor, not dry facts.
-                    const lorePrompt = `Based on this summary: "${summary}", generate 3-10 deep worldbuilding entries (Lore).
-                    Focus on history, culture, factions, secrets, or atmospheric details that make the world feel alive. Avoid generic definitions. Each entry should be an important piece of information within the environment of the story that adds to the narrative complexity. Ensure that each entry is authentic to the genre, style, and scenario of this narrative; a high fantasy narrative will have much differen lore than a slice-of-life tale set in Brooklyn, for example.
-                    
-                    Title: The entry title should be a clear, direct, and concise name for the entry.
+                    // REFINED PROMPT: Practical worldbuilding
+                    const lorePrompt = `Based on this summary: "${summary}", generate 3-10 worldbuilding entries.
+                    Focus on practical facts: places, people, history, customs. Be authentic to the genre.
 
-                    Return VALID JSON: { "entries": [{"title": "Entry Title", "content": "Rich, descriptive content..."}] }`;
+                    Return VALID JSON: { "entries": [{"title": "Entry Title", "content": "Factual content..."}] }`;
 
                     const loreData = await this._callAIWithRetry(lorePrompt);
                     if (loreData && loreData.entries) {
@@ -11683,24 +11681,20 @@
                     const speakerChar = draft.characters.find(c => !c.is_user) || draft.characters[0];
                     const userChar = draft.characters.find(c => c.is_user) || { name: "You" };
 
-                    // REFINED PROMPT: Enforce Perspective and Speaker Identity
+                    // REFINED PROMPT: Calm, natural opening
                     const scenarioPrompt = `Context: ${contextSummary}${relationshipContext}
-                    
+
                     Task:
-                    1. Write an "opening_message" for the chat. This message is spoken or enacted by ${speakerChar.name}. 
-                       It must be directed AT ${userChar.name}. 
-                       Do NOT describe ${userChar.name}'s thoughts or actions. 
-                       Only describe what ${speakerChar.name} says or does.
-                       Use 'prose-style' writing with speech in quotations, rather than roleplay-style writing with actions in parentheses or asterisks.
-                       Organically set the setting, scene, and at least a hint of the inciting incident so that the participants know how to interact.
-                    
-                    2. Write "scenario_lore". This is a static description of the narrative genre, style, and atmosphere, the setting/scene, and the inciting incident. This should establish the initial goals or intent of ${speakerChar.name}. 
-                       Write this in 3rd Person (e.g., "The room is dark," not "You are in a dark room").
-                    
+                    1. Write an "opening_message" spoken by ${speakerChar.name} to ${userChar.name}.
+                       Only describe what ${speakerChar.name} says or does. No drama, no crisis.
+                       Use prose with speech in quotations. Start from a calm, normal moment.
+
+                    2. Write "scenario_lore". Brief 3rd person description of the setting.
+
                     Return VALID JSON:
                     {
                         "opening_message": "The opening lines of the scene...",
-                        "scenario_lore": "Static lore describing the scene..."
+                        "scenario_lore": "Description of the scene and situation..."
                     }`;
 
                     const scenData = await this._callAIWithRetry(scenarioPrompt);
