@@ -100,7 +100,11 @@ The `ReactiveStore` (`client/index.html:6856`) wraps the state in a `Proxy` that
 
 ## 3. The Generation Flow (End-to-End)
 
-When the user sends a message, the following pipeline executes:
+### Entry Point: `NarrativeController.handlePrimaryAction()` — `client/index.html:12527–12540`
+
+The primary action button has dual behavior:
+- **Empty input** → calls `triggerAIResponse(null)` directly (passes turn to AI)
+- **Text present** → calls `sendMessage()` (user message flow below)
 
 ### `NarrativeController.sendMessage()` — `client/index.html:12857–12899`
 
@@ -142,7 +146,7 @@ const modelInstructions = charToAct.model_instructions || state.system_prompt;
 
 ### Default Values
 
-**`client/index.html:4866`** — `UTILITY.getDefaultSystemPrompts()`:
+**`client/index.html:4864`** — `UTILITY.getDefaultSystemPrompts()`:
 ```javascript
 system_prompt: 'You are a master storyteller. Follow instructions precisely.'
 ```
@@ -962,7 +966,9 @@ Every template ends with `{charName}:\n` as a response prefix, priming the model
 
 ### Client Side
 
-**`client/src/api-client.js:195–240`** — `APIService.callAI()`:
+The `client/index.html` defines an inline `APIService` that calls provider APIs directly from the browser (`client/index.html:4366`). When the server backend is used, `client/src/api-client.js` overrides `window.APIService` with a proxy version that routes all calls through the Express server. The override happens via `window.APIService = APIService` at module load (`client/src/api-client.js:485`), replacing the inline version since the module script tag loads before the inline `<script>` uses `window.APIService || { ... }` fallback (`client/index.html:4366`).
+
+**`client/src/api-client.js:195–240`** — `APIService.callAI()` (server-proxied version):
 
 ```javascript
 async callAI(prompt, isJson = false, signal = null) {
