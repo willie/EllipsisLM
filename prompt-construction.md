@@ -36,12 +36,17 @@ This document exhaustively traces how the final LLM prompt is assembled, from ra
 
 EllipsisLM is a full-stack roleplay/chat application:
 
-- **Frontend**: Single-page app in `client/index.html` (~16,000 lines of vanilla JS) + `client/src/api-client.js`
-- **Backend**: Node.js + Express in `server/`, proxying API calls to LLM providers
-- **Storage**: SQLite (server) + localStorage (client) with cross-device sync
+- **Frontend**: Single-page app (~16,000 lines of vanilla JS) with two variants:
+  - `index.html` (root) — standalone version with inline `DBService`/`APIService` (IndexedDB + direct API calls)
+  - `client/index.html` — server-backed version that loads `client/src/api-client.js` as a module, which overrides `window.DBService`, `window.APIService`, etc. with server-proxied implementations
+- **Backend**: Node.js + Express in `server/`, proxying API calls to LLM providers (API keys stay server-side)
+- **Storage**: SQLite via `better-sqlite3` (server) + localStorage (client) with cross-device sync
 - **AI Providers**: Gemini, OpenRouter, KoboldCPP (local), LM Studio (local)
+- **Dev server**: Vite (`client/vite.config.js`) proxies `/api` to the Express server at `localhost:3001`
 
 All prompt construction happens client-side in the `PromptBuilder` module. The server acts as a pass-through proxy that injects API keys and forwards the fully-constructed prompt string.
+
+All line number references in this document refer to `client/index.html` (the server-backed variant). The root `index.html` has the same code offset by -3 lines (missing the api-client.js `<script>` tag).
 
 ---
 
@@ -1242,6 +1247,22 @@ for (const match of cleanedText.matchAll(regex)) {
 ```
 
 `<START>` tags are stripped. Messages are split by `{{user}}:` and `{{char}}:` prefixes.
+
+### BYAF (Backyard AI) Format
+
+**`client/index.html:6218–6432`** — `_convertBYAFtoEllipsis()`:
+
+| BYAF Field | EllipsisLM Field | Notes |
+|------------|-----------------|-------|
+| `displayName` / `name` | `character.name` | Direct mapping |
+| `persona` | `character.description` | Direct mapping |
+| `scenario.formattingInstructions` | `character.model_instructions` | From first scenario; fallback: `"Act as {character}."` |
+| `scenario.exampleMessages` | `chat_history[]` with `isHidden: true` | Parsed via `msg.type` (`'human'`/`'ai'`) |
+| `scenario.messages` | `chat_history[]` (visible) | Narrative chat history |
+| `loreItems` | `dynamic_entries[]` | `key` → `triggers`, `value` → `content_fields[0]` |
+| `tags` | `story.tags` | Direct mapping |
+
+BYAF messages use a `type` field (`'human'`/`'ai'`) for speaker identification, with additional name-prefix parsing (`"CharName: text"`) to support multi-character stories. Unknown names auto-create new characters via `resolveCharacter()` (`client/index.html:6255`).
 
 ---
 
