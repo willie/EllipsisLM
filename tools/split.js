@@ -6,14 +6,17 @@
 // plus the script-tag boundaries themselves.
 //
 // Named slices (those that span exactly one top-level binding — const, function,
-// class) are written as `.js` with a stripped-on-combine wrapper that declares
-// every sibling-slice binding name. That makes the slice file open in an editor
-// as syntactically clean JavaScript with no spurious "undefined identifier"
-// warnings on cross-controller references. The wrapper region is delimited by
-// the sentinel comments  //@ellipsis-wrap-begin  and  //@ellipsis-wrap-end ;
-// combine.js strips that region and concatenates what remains.
+// class) are written as `.js` with stripped-on-combine wrappers that make the
+// slice loadable as a Node module: a header installs lazy `globalThis` getters
+// pointing into a generated `_stubs.js` so sibling-slice references resolve at
+// runtime, and a footer publishes this slice's own binding back to globalThis
+// and `module.exports`. require('./42-APIService.js') then returns
+// { APIService }. The wrapper regions are delimited by the sentinel comments
+//   //@ellipsis-wrap-begin   and   //@ellipsis-wrap-end ;
+// combine.js strips both and concatenates what remains.
 //
-// Output: ./slices/NNNN[-Name].{js,slice}  +  ./slices/manifest.txt
+// Output: ./slices/NNNN[-Name].{js,slice}  +  ./slices/manifest.txt  +
+//         ./slices/_stubs.js  (sibling resolver, not part of the manifest)
 
 const fs = require('fs');
 const path = require('path');
@@ -145,44 +148,102 @@ const allBindingNames = slices.map(s => s.bindingName).filter(Boolean);
 fs.rmSync(OUT_DIR, { recursive: true, force: true });
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
-function buildWrapper(ownName) {
-    const others = allBindingNames.filter(n => n !== ownName);
-    // Format: 6 names per line, indented for readability inside the file.
+// We need each slice's filename so the generated _stubs.js can require it.
+// First pass: assign filenames; second pass: write contents.
+const pad = String(slices.length).length;
+const filenames = slices.map((s, i) => {
+    const idx = String(i).padStart(pad, '0');
+    const tag = s.label ? `-${sanitize(s.label)}` : '';
+    return `${idx}${tag}${s.bindingName ? '.js' : '.slice'}`;
+});
+const fileForBinding = {};
+slices.forEach((s, i) => { if (s.bindingName) fileForBinding[s.bindingName] = filenames[i]; });
+
+function formatNameList(names) {
+    // 6 names per line, indented for readability.
     const lines = [];
-    for (let i = 0; i < others.length; i += 6) {
-        lines.push('    ' + others.slice(i, i + 6).join(', '));
+    for (let i = 0; i < names.length; i += 6) {
+        lines.push('    ' + names.slice(i, i + 6).map(n => JSON.stringify(n)).join(', '));
     }
+    return lines.join(',\n');
+}
+
+function buildHeader(ownName) {
+    const others = allBindingNames.filter(n => n !== ownName);
     return [
         WRAP_BEGIN,
-        '/* eslint-disable no-var, no-unused-vars */',
-        '/* Declarations of sibling-slice identifiers — stripped at combine time. */',
-        '/** @type {*} */ var',
-        lines.join(',\n') + ';',
+        '/* eslint-disable */',
+        '/* Sibling-slice resolver. Active only when this slice is loaded as a',
+        ' * Node module (require(\'./NN-Name.js\')). The combine step strips this',
+        ' * whole block, so it contributes zero bytes to index.html. */',
+        '{',
+        '    const _stubs = require(\'./_stubs.js\');',
+        '    const _siblings = [',
+        formatNameList(others) + ',',
+        '    ];',
+        '    for (const _k of _siblings) {',
+        '        if (_k in globalThis) continue;',
+        '        Object.defineProperty(globalThis, _k, {',
+        '            configurable: true,',
+        '            get() { return _stubs[_k]; },',
+        '            set(v) { Object.defineProperty(globalThis, _k, { value: v, writable: true, configurable: true, enumerable: true }); },',
+        '        });',
+        '    }',
+        '}',
         WRAP_END,
         '',
     ].join('\n');
 }
 
-const pad = String(slices.length).length;
+function buildFooter(ownName) {
+    // No leading '' here — the footer butts directly against the original's
+    // last byte. The strip regex consumes the trailing newline after WRAP_END.
+    return [
+        WRAP_BEGIN,
+        `if (typeof globalThis !== 'undefined') globalThis.${ownName} = ${ownName};`,
+        `if (typeof module !== 'undefined') module.exports = { ${ownName} };`,
+        WRAP_END,
+        '',
+    ].join('\n');
+}
+
 const manifestLines = [];
 slices.forEach((s, i) => {
-    const idx = String(i).padStart(pad, '0');
-    const tag = s.label ? `-${sanitize(s.label)}` : '';
+    const fname = filenames[i];
     let content;
-    let fname;
     if (s.bindingName) {
-        // Named slice with a real binding → write as JS with wrapper.
-        fname = `${idx}${tag}.js`;
-        content = buildWrapper(s.bindingName) + text.slice(s.start, s.end);
+        content = buildHeader(s.bindingName) + text.slice(s.start, s.end) + buildFooter(s.bindingName);
     } else {
-        // Gap slice (whitespace/HTML/CSS/wrapper) or ExpressionStatement →
-        // write as raw substring with .slice extension, no wrapper.
-        fname = `${idx}${tag}.slice`;
         content = text.slice(s.start, s.end);
     }
     fs.writeFileSync(path.join(OUT_DIR, fname), content, 'utf8');
     manifestLines.push(fname);
 });
+
+// Generate _stubs.js — the lazy resolver every named slice's header requires.
+// Not in the manifest; not part of the rebuilt index.html.
+const stubsEntries = allBindingNames
+    .map(name => `    ${JSON.stringify(name)}: ${JSON.stringify('./' + fileForBinding[name])},`)
+    .join('\n');
+const stubsJs = [
+    '// Generated by tools/split.js — do not edit by hand.',
+    '// Lazy resolver for every sibling-slice binding. Each get triggers a',
+    '// require() of the owning slice; Node\'s module cache keeps repeat',
+    '// access cheap. Circular dependencies that touch other slices only',
+    '// inside method bodies (the EllipsisLM pattern) resolve cleanly.',
+    'const SLICE_FOR = {',
+    stubsEntries,
+    '};',
+    'for (const name of Object.keys(SLICE_FOR)) {',
+    '    Object.defineProperty(module.exports, name, {',
+    '        enumerable: true,',
+    '        get() { return require(SLICE_FOR[name])[name]; },',
+    '    });',
+    '}',
+    '',
+].join('\n');
+fs.writeFileSync(path.join(OUT_DIR, '_stubs.js'), stubsJs, 'utf8');
+
 fs.writeFileSync(path.join(OUT_DIR, 'manifest.txt'), manifestLines.join('\n') + '\n');
 fs.writeFileSync(path.join(OUT_DIR, 'source.sha256'), srcHash + '  index.html\n');
 

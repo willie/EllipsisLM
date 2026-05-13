@@ -8,106 +8,137 @@ distributed artifact. `combine(split(index.html)) == index.html`, byte-for-byte.
 - `split.js` partitions `index.html` into a sequence of slices. Every byte of
   the input lives in exactly one slice (after wrapper-stripping). Top-level
   JavaScript declarations inside each inline `<script>` block become their own
-  named slice (`.js`, with an editor-friendly wrapper); everything else — HTML,
-  CSS, inter-statement whitespace, JSDoc blocks, the script-tag wrappers
-  themselves — becomes an unnamed gap slice (`.slice`, verbatim, no wrapper).
-  No code is regenerated.
+  named slice (`.js`, wrapped to be loadable as a Node module); everything
+  else — HTML, CSS, inter-statement whitespace, JSDoc blocks, the script-tag
+  wrappers themselves, and top-level expression statements like
+  `document.addEventListener(…)` — becomes an unnamed gap slice (`.slice`,
+  verbatim, no wrapper). No code is regenerated.
 
-- `combine.js` reads `slices/manifest.txt`, strips the wrapper region from each
-  named slice, and concatenates the result. The wrapper region is delimited by
-  the sentinel comments `//@ellipsis-wrap-begin` and `//@ellipsis-wrap-end`;
-  `split.js` aborts if either sentinel appears anywhere in `index.html`.
+- `combine.js` reads `slices/manifest.txt`, strips every wrapper region from
+  each named slice, and concatenates the result. Wrapper regions are delimited
+  by the sentinel comments `//@ellipsis-wrap-begin` and `//@ellipsis-wrap-end`;
+  `split.js` aborts if either sentinel appears in `index.html`.
 
 - Round-trip is identity *by construction* outside the wrapper regions.
   Whitespace, CRLF endings, quote styles, comment formatting, multi-byte UTF-8
-  in comments — all preserved, because the original substring inside each
-  slice is never reformatted, only sliced and re-glued. `combine.js` verifies
-  the recombined sha256 against `slices/source.sha256` and exits non-zero on
-  mismatch (the CI signal).
+  — all preserved. `combine.js` verifies the recombined sha256 against
+  `slices/source.sha256` and exits non-zero on mismatch (the CI signal).
 
-## What the wrapper does
+## What the wrappers do (Flavor B)
 
-Each named slice opens like this:
+Each named slice is a real Node module:
 
 ```js
 //@ellipsis-wrap-begin
-/* eslint-disable no-var, no-unused-vars */
-/* Declarations of sibling-slice identifiers — stripped at combine time. */
-/** @type {*} */ var
-    APP_BUILD_TIMESTAMP, DOM, ActionHandler, debounce, DBService,
-    ImageGenerationService, StoryService, StateManager, TTSService,
-    /* … 22 more names … */
-    app;
+{
+    const _stubs = require('./_stubs.js');
+    const _siblings = [ "DOM", "DBService", "StateManager", /* … 28 more … */ ];
+    for (const _k of _siblings) {
+        if (_k in globalThis) continue;
+        Object.defineProperty(globalThis, _k, {
+            configurable: true,
+            get() { return _stubs[_k]; },
+            set(v) { Object.defineProperty(globalThis, _k, { value: v, writable: true, configurable: true, enumerable: true }); },
+        });
+    }
+}
 //@ellipsis-wrap-end
 const APIService = {
     // … original verbatim …
-};
+};//@ellipsis-wrap-begin
+if (typeof globalThis !== 'undefined') globalThis.APIService = APIService;
+if (typeof module !== 'undefined') module.exports = { APIService };
+//@ellipsis-wrap-end
 ```
 
-The wrapper declares every sibling-slice binding (everything declared in any
-other named slice) as `var` with JSDoc `@type {*}`. That makes the slice file
-syntactically self-contained: `acorn` parses it as a clean script, and
-editors / linters / LSPs stop flagging `ReactiveStore.state` and similar
-cross-controller references as undefined. The wrapper contributes zero bytes
-to the combined output — `combine.js` matches the sentinel pair and removes
-everything between them, including the trailing newline after `wrap-end`.
+`require('./42-APIService.js')` returns `{ APIService }`. Cross-controller
+references (`ReactiveStore.state`, `StateManager.getState()`, etc.) inside
+the controller's methods resolve at call time through `globalThis` getters
+that lazily `require()` the owning slice via the generated `_stubs.js`. The
+setter on each descriptor reassigns the property as a plain data property the
+first time the owning slice publishes itself, so subsequent access skips the
+resolver chain.
 
-The wrapper does not make the slice runnable as a Node module — the `var`s
-are placeholders, not real bindings. Methods on the controller still need the
-combined `index.html` to actually call cross-controller code. The wrapper is
-for editor / LLM ergonomics: open one slice, edit it, the file looks like
-correct JS at rest. Runnability would require a heavier wrapper that loads
-sibling slices and installs them on `globalThis`; not implemented here.
+The combine step strips every wrapper region, so all of this contributes
+exactly zero bytes to `index.html`. `out/index.html` is byte-identical to the
+source.
+
+### What works
+
+- Loading a single slice (`require('./slices/42-APIService.js')`) returns the
+  controller as an object with all its methods present.
+- Touching a sibling on `globalThis` (e.g. `globalThis.NarrativeController`)
+  after loading any one slice triggers a lazy require chain that resolves
+  the whole graph on demand.
+- Loading all 32 named slices and then accessing
+  `globalThis.NarrativeController.determineNextSpeaker` yields a function.
+
+### What doesn't work, and why
+
+- **Actually executing the methods.** EllipsisLM's controllers reference
+  browser globals (`document`, `window`, `localStorage`, `indexedDB`,
+  `fetch` in some flows) inside their method bodies. Loading the slice as a
+  Node module succeeds because those references are in unexecuted method
+  closures; calling a method that touches them would crash in Node. For
+  behaviour testing you still need the combined file running in a browser
+  or Electron. The Flavor B wrapper gives you "load and inspect," not "run."
+- **Circular references at module load time.** Node returns partial exports
+  for a module that's mid-loading. EllipsisLM's controllers reference
+  siblings only in method bodies (not at the top of their own object
+  literal), so this doesn't bite in practice. If you write code that
+  references a sibling at slice load time, you might get `undefined`.
 
 ## Usage
 
 ```
 npm install                       # one-time, installs acorn (dev dep)
-node tools/split.js               # writes slices/ (32 .js + 59 .slice)
+node tools/split.js               # writes slices/ (32 .js + 59 .slice + _stubs.js)
 node tools/combine.js             # writes out/index.html and verifies hash
 shasum -a 256 index.html out/index.html
 ```
 
 Edit a named slice (e.g. `slices/42-APIService.js`) → re-run `combine.js` →
 the resulting `out/index.html` differs from the original at exactly the edited
-bytes. The combine script reports `ROUND-TRIP MISMATCH` and exits non-zero,
-which is correct: the slices are now the source of truth, the original is
+bytes. The combine script reports `ROUND-TRIP MISMATCH` and exits non-zero —
+that's correct: the slices are now the source of truth, the original is
 stale, and `out/index.html` is what you'd commit.
 
-To regenerate slices from a freshly modified `index.html`, just re-run
-`split.js` — it always wipes `slices/` first.
+To regenerate slices from a freshly modified `index.html`, re-run `split.js`
+— it always wipes `slices/` first.
 
 ## File layout
 
-- `slices/NN-Name.js` — a wrapped, editor-friendly file holding exactly one
-  top-level JS declaration (`const Foo = …`, `function Bar() {…}`, or
-  `class Baz {…}`).
-- `slices/NN.slice` — a raw byte-literal slice with no wrapper. Holds HTML,
+- `slices/NN-Name.js` — wrapped, editor-friendly, Node-loadable file holding
+  exactly one top-level JS declaration.
+- `slices/NN.slice` — raw byte-literal slice with no wrapper. Holds HTML,
   CSS, inter-declaration whitespace, JSDoc comments, the `<script>` tag
-  wrappers, and top-level expression statements like
-  `document.addEventListener(…)`.
+  wrappers, top-level expression statements (IIFEs etc.).
+- `slices/_stubs.js` — generated lazy resolver mapping every binding name to
+  the slice file that defines it. Required by each named slice's header.
+  Not in the manifest; not part of the rebuilt `index.html`.
 - `slices/manifest.txt` — ordered list of slice filenames. `combine.js` reads
   this and only this for ordering.
 - `slices/source.sha256` — snapshot of `index.html`'s sha256 at split time;
-  `combine.js` checks the rebuilt output against this and uses the diff as
-  the CI signal.
+  `combine.js` uses the diff against this as the CI signal.
 
 ## Why this exists
 
 `index.html` is ~23k lines and ~1.6 MB. Asking an LLM to edit it means
 loading the whole file into context, but real edits usually touch one
-controller (`NarrativeController`, `PromptBuilder`, `APIService`, etc.) that's
-a small fraction of the file. With this split, an edit to the Scriptwriter
-prompt becomes "open `slices/78-NarrativeController.js` (~3000 lines), edit
-it, re-combine." Distribution and "the app is one HTML file" remain unchanged.
+controller (`NarrativeController`, `PromptBuilder`, `APIService`, etc.)
+that's a small fraction of the file. With this split, an edit to the
+Scriptwriter prompt becomes "open `slices/78-NarrativeController.js` (~3000
+lines), edit it, re-combine." Distribution and "the app is one HTML file"
+remain unchanged.
 
 ## Limitations / next steps
 
 - Top-level decomposition only. Some named slices are still large
   (`UIManager` ~240 KB, `NarrativeController` ~207 KB). A second pass could
   split each controller's methods into sub-slices using the same approach.
-- The wrapper is declarations-only (Flavor A). Standalone Node-module loading
-  (Flavor B) would require generating a `_stubs.js` that lazily resolves
-  cross-controller names, plus per-slice `globalThis` registration. Doable;
-  not done because most realistic testing happens in the combined file anyway.
+- The wrappers don't supply browser-environment stubs (`window`, `document`,
+  `localStorage`, etc.). A slice loads fine in Node but its methods can't be
+  executed there without an external stub layer (JSDOM, happy-dom, or
+  hand-written shims). Not needed for the LLM-editing workflow this prototype
+  targets.
 - No HMR. This is a build-artifact pattern, not a dev server.
