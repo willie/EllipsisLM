@@ -11,6 +11,7 @@
     "dist:mac": "electron-builder --mac --publish never"
   },
   "devDependencies": {
+    "acorn": "^8.16.0",
     "electron": "^30.5.1",
     "electron-builder": "^24.13.3",
     "tailwindcss": "3.4"
