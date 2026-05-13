@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Reads slices/manifest.txt and concatenates the named slice files in order,
-// producing out/index.html. Slices are treated as opaque byte ranges — no
-// parsing, no transformation. Output is byte-identical to the source iff the
-// slice files have not been edited.
+// producing out/index.html. For named (.js) slices, strips the wrapper region
+// delimited by  //@ellipsis-wrap-begin  ...  //@ellipsis-wrap-end ; gap (.slice)
+// files are taken verbatim. Output is byte-identical to the source iff the
+// content outside wrapper regions has not been edited.
 
 const fs = require('fs');
 const path = require('path');
@@ -12,12 +13,20 @@ const ROOT = path.resolve(__dirname, '..');
 const SLICES_DIR = path.join(ROOT, 'slices');
 const OUT = path.join(ROOT, 'out', 'index.html');
 
+const WRAP_RE = /\/\/@ellipsis-wrap-begin\n[\s\S]*?\/\/@ellipsis-wrap-end\n/g;
+
 const manifest = fs.readFileSync(path.join(SLICES_DIR, 'manifest.txt'), 'utf8')
     .split('\n')
     .filter(Boolean);
 
-const buffers = manifest.map(f => fs.readFileSync(path.join(SLICES_DIR, f)));
-const combined = Buffer.concat(buffers);
+const parts = manifest.map(f => {
+    const raw = fs.readFileSync(path.join(SLICES_DIR, f), 'utf8');
+    // Strip wrapper regions. Runs unconditionally — no-op on gap slices that
+    // don't contain the sentinels.
+    const stripped = raw.replace(WRAP_RE, '');
+    return Buffer.from(stripped, 'utf8');
+});
+const combined = Buffer.concat(parts);
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, combined);
