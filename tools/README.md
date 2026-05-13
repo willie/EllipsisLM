@@ -73,15 +73,42 @@ source.
 - Loading all 32 named slices and then accessing
   `globalThis.NarrativeController.determineNextSpeaker` yields a function.
 
+### Browser-globals stubs
+
+`slices/_browser-stubs.js` (generated, required by `_stubs.js`) installs
+minimal stand-ins for the browser environment so controller methods can be
+invoked from Node for smoke-testing:
+
+- `window` → `globalThis`
+- `document` — `getElementById`, `querySelector(All)`, `createElement`, `body`,
+  `head`, etc. return stub elements with no-op `classList`, pass-through `style`,
+  empty children, and silent event listeners.
+- `localStorage`, `sessionStorage` — in-memory `Map`-backed. **Force-installed**
+  because Node 25+ ships a half-wired experimental version that emits warnings
+  and lacks `getItem` without `--localstorage-file`.
+- `navigator` — userAgent, clipboard, language, onLine (only if Node hasn't
+  already provided one).
+- `requestAnimationFrame` / `cancelAnimationFrame` — `setTimeout`-backed.
+- `Audio`, `Image` — placeholder classes with no-op methods.
+
+What this buys you is **pure-function invocation in Node**. The parsers,
+formatters, and helpers in `UTILITY` (`extractStructuredHeadings`,
+`extractDelimitedList`, `parseLoreTrigger`, `uuid`, `escapeRegExp`,
+`stripThinking`, etc.) now run as-is from any slice. Anything that touches
+DOM state, IndexedDB, the network, or real browser semantics will run far
+enough to need real data — at which point you should test in the combined
+file or under a real browser-env shim (JSDOM, happy-dom, fake-indexeddb).
+
+IndexedDB is deliberately not stubbed: a silent no-op persistence layer is
+worse than a loud failure.
+
 ### What doesn't work, and why
 
-- **Actually executing the methods.** EllipsisLM's controllers reference
-  browser globals (`document`, `window`, `localStorage`, `indexedDB`,
-  `fetch` in some flows) inside their method bodies. Loading the slice as a
-  Node module succeeds because those references are in unexecuted method
-  closures; calling a method that touches them would crash in Node. For
-  behaviour testing you still need the combined file running in a browser
-  or Electron. The Flavor B wrapper gives you "load and inspect," not "run."
+- **Methods that need real DOM state, real IndexedDB, or live network.** The
+  stubs let methods *start* without immediately ReferenceError-ing on
+  `document` / `localStorage` / etc.; methods that go deeper into those
+  systems will fail loudly. For behaviour testing, use the combined file in
+  a browser or Electron.
 - **Circular references at module load time.** Node returns partial exports
   for a module that's mid-loading. EllipsisLM's controllers reference
   siblings only in method bodies (not at the top of their own object
@@ -116,6 +143,9 @@ To regenerate slices from a freshly modified `index.html`, re-run `split.js`
 - `slices/_stubs.js` — generated lazy resolver mapping every binding name to
   the slice file that defines it. Required by each named slice's header.
   Not in the manifest; not part of the rebuilt `index.html`.
+- `slices/_browser-stubs.js` — generated browser-globals shim (`document`,
+  `localStorage`, etc.). Required by `_stubs.js`, so every named slice picks
+  it up automatically. Not in the manifest; not part of `index.html`.
 - `slices/manifest.txt` — ordered list of slice filenames. `combine.js` reads
   this and only this for ordering.
 - `slices/source.sha256` — snapshot of `index.html`'s sha256 at split time;
